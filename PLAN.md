@@ -356,3 +356,7 @@ Append only. Format: `time | session | change | why`. Only add optional fields, 
 
 23:55 | human | Section 0 "Demo first" added; Strategy moved to B; a2a.call event; kpis filters + drilldown skill; graph, voice, demo page files; checkpoints reprioritized | jury grades the working demo
 
+00:40 | A | CP0 delivered. Optional schema fields added before freeze: Product.type/duration, Interaction.segment, PaymentIntent.segment, GateDecision.payment_status | needed by UI and policy per segment
+00:40 | A | Extra skills: analyst.knowledge, strategy.decide + strategy.list, gate.pending, security.list_rules/propose_rule/rule_decision, redteam.score; ACL updated | UI panels (knowledge graph, recommendations, gate queue, vaccines)
+00:40 | A | Signing payload {intent_id, intent_hash, signer, decision}; gate_proof over {intent_id, intent_hash, approved:true}; event data contracts in notes/a_to_b.md | shared between gate and signers
+00:40 | A | New A files: hub/state.py, hub/static/bus.js (event bus + UI helpers), chat.js, partner.html, widget.js, vendor/ (Cytoscape, Chart.js offline) | demo works offline except Chrome speech recognition
