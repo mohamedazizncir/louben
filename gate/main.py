@@ -1,124 +1,167 @@
-"""Multisig Gate. PHASE 0 STUB written by A, owned by B after CP0.
+"""Multisig Gate. Owner: B.
 
-A payment needs 3 agent signatures (payment, security, analyst) + a human key when risky.
+No payment moves without 3 agent signatures (Payment, Security, Analyst) over
+the same intent_hash, plus a human key when the amount, the discount or the
+risk is high (PLAN.md Section 9). Decision logic lives in gate/multisig.py.
 """
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from common import config, crypto
 from common.a2a import A2AError, SkillRejected, call, create_agent_app
 from common.events import emit
-from common.schemas import GateDecision, PaymentIntent, Signature
+from common.schemas import GateDecision, Signature
+from gate import multisig
+
+# Once an intent is parked server side, the human has 30 minutes. The 5 minute
+# expiry protects the network path (replays), not the operator's reaction time.
+HUMAN_WINDOW = timedelta(minutes=30)
 
 PENDING: dict[str, dict] = {}
 USED_NONCES: set[str] = set()
-SIGNERS = ["payment", "security", "analyst"]
 
 
-def intent_hash(intent: dict) -> str:
-    return crypto.sha256_hex(crypto.canonical({k: v for k, v in intent.items() if k != "intent_hash"}))
+def reset_state() -> None:
+    PENDING.clear()
+    USED_NONCES.clear()
 
 
-def sig_ok(s: dict) -> bool:
-    return crypto.verify_obj(s["signer"], {"intent_id": s["intent_id"], "intent_hash": s["intent_hash"],
-                                           "signer": s["signer"], "decision": s["decision"]}, s.get("signature_b64", ""))
+def _verify(signer: str, payload: bytes, sig_b64: str) -> bool:
+    pub = crypto.registry_keys().get(signer)
+    return bool(pub) and crypto.verify_bytes(pub, payload, sig_b64 or "")
 
 
-async def _collect(intent: dict) -> list[dict]:
-    async def one(signer):
+def _decision(intent: dict, status: str, sigs: list[dict], **kw) -> dict:
+    return GateDecision(intent_id=intent["intent_id"], status=status,
+                        signatures=[Signature(**s) for s in sigs if s.get("signature_b64")], **kw).model_dump()
+
+
+def _brief(intent: dict) -> dict:
+    return {"intent_id": intent["intent_id"], "customer_id": intent["customer_id"],
+            "amount": intent["amount"], "product_id": intent["product_id"]}
+
+
+async def _alert(type_: str, intent: dict, reason: str, severity: str = "critical") -> None:
+    await emit("security.alert", {"type": type_, "severity": severity, "customer_id": intent.get("customer_id"),
+                                  "target": "gate", "requires_human": False,
+                                  "details": {"intent_id": intent.get("intent_id"), "reason": reason}},
+               severity="critical" if severity == "critical" else "warning")
+
+
+async def _reject(intent: dict, sigs: list[dict], reasons: list[str]) -> dict:
+    await emit("gate.rejected", {**_brief(intent), "reasons": reasons}, severity="warning")
+    return _decision(intent, "rejected", sigs)
+
+
+async def _collect(intent: dict) -> tuple[list[dict], list[str]]:
+    """Ask the 3 signers in parallel. Each signature lights a key on the dashboard."""
+    async def one(signer: str):
         try:
             s = await call(signer, "sign", intent)
-            if not sig_ok(s) or s["intent_hash"] != intent["intent_hash"]:
-                s = {**s, "decision": "refuse", "reason": "invalid signature"}
         except A2AError as e:
-            s = Signature(intent_id=intent["intent_id"], intent_hash=intent["intent_hash"], signer=signer,
-                          decision="refuse", reason=f"unreachable: {e.message}").model_dump()
-        await emit("gate.signature", {"intent_id": intent["intent_id"], "signer": signer, "decision": s["decision"],
-                                      "reason": s.get("reason", "")})
+            await emit("gate.signature", {"intent_id": intent["intent_id"], "signer": signer,
+                                          "decision": "refuse", "reason": f"unreachable: {e.message[:60]}"},
+                       severity="warning")
+            return None
+        await emit("gate.signature", {"intent_id": intent["intent_id"], "signer": signer,
+                                      "decision": s.get("decision"), "reason": s.get("reason", ""),
+                                      "risk_level": s.get("risk_level")})
         return s
-    return list(await asyncio.gather(*(one(s) for s in SIGNERS)))
+    results = await asyncio.gather(*(one(s) for s in multisig.REQUIRED_SIGNERS))
+    unreachable = [n for n, s in zip(multisig.REQUIRED_SIGNERS, results) if s is None]
+    return [s for s in results if s is not None], unreachable
 
 
 async def _execute(intent: dict, sigs: list[dict]) -> dict:
-    proof = crypto.sign_obj("gate", {"intent_id": intent["intent_id"], "intent_hash": intent["intent_hash"], "approved": True})
-    res = await call("payment", "execute", {"intent_id": intent["intent_id"], "gate_proof": proof})
+    proof = multisig.make_gate_proof(intent["intent_hash"], sigs, lambda p: crypto.sign_bytes("gate", p))
+    try:
+        res = await call("payment", "execute", {"intent_id": intent["intent_id"], "gate_proof": proof,
+                                                "signatures": sigs})
+    except A2AError as e:
+        return await _reject(intent, sigs, [f"payment: {e.message}"])
     await emit("gate.approved", {"intent_id": intent["intent_id"], "amount": intent["amount"],
-                                 "payment_status": res.get("status")})
-    return GateDecision(intent_id=intent["intent_id"], status="executed", signatures=[Signature(**s) for s in sigs],
-                        payment_status=res.get("status")).model_dump()
+                                 "customer_id": intent["customer_id"], "payment_status": res.get("status")})
+    return _decision(intent, "executed", sigs, payment_status=res.get("status"))
+
+
+async def _report_problems(intent: dict, problems: list[dict]) -> None:
+    for p in problems:
+        await _alert(p["type"], intent, p["reason"])
 
 
 async def submit(data: dict, ctx: dict) -> dict:
-    """Collect the 3 agent signatures, ask a human when risky, then execute."""
-    intent = PaymentIntent(**data).model_dump()
-    if intent_hash(intent) != intent["intent_hash"]:
-        await emit("security.alert", {"type": "tampering", "severity": "critical", "customer_id": intent["customer_id"],
-                                      "details": {"intent_id": intent["intent_id"]}}, severity="critical")
+    """Collect the 3 agent signatures on the intent hash, ask a human when risky, then execute."""
+    intent = dict(data)
+    if multisig.compute_intent_hash(intent) != intent.get("intent_hash"):
+        await _alert("tampering", intent, "intent fields do not match intent_hash")
         raise SkillRejected("intent hash mismatch (tampering)")
-    if intent["nonce"] in USED_NONCES:
-        await emit("security.alert", {"type": "replay", "severity": "critical", "customer_id": intent["customer_id"],
-                                      "details": {"intent_id": intent["intent_id"]}}, severity="critical")
-        raise SkillRejected("nonce already used (replay)")
+    ok, why = multisig.check_freshness(intent, None, USED_NONCES)
+    if not ok:
+        await _alert("replay", intent, why)
+        raise SkillRejected(why)
     USED_NONCES.add(intent["nonce"])
 
-    sigs = await _collect(intent)
-    refused = [s for s in sigs if s["decision"] != "approve"]
-    if refused:
-        await emit("gate.rejected", {"intent_id": intent["intent_id"], "customer_id": intent["customer_id"],
-                                     "amount": intent["amount"], "product_id": intent["product_id"],
-                                     "reasons": [f"{s['signer']}: {s.get('reason')}" for s in refused]}, severity="warning")
-        return GateDecision(intent_id=intent["intent_id"], status="rejected",
-                            signatures=[Signature(**s) for s in sigs]).model_dump()
+    sigs, unreachable = await _collect(intent)
+    if unreachable:  # fail closed
+        return await _reject(intent, sigs, [f"{n}: unreachable" for n in unreachable])
 
-    policy = config.load_json("policy.json")
-    reasons = []
-    if intent["amount"] > float(policy.get("human_threshold", 1000)):
-        reasons.append(f"amount {intent['amount']} TND > {policy.get('human_threshold')} TND")
-    if intent["discount_pct"] > float(policy.get("human_discount_pct", 10)):
-        reasons.append(f"discount {intent['discount_pct']}% > {policy.get('human_discount_pct')}%")
-    if reasons:
-        PENDING[intent["intent_id"]] = {"intent": intent, "signatures": sigs, "reason": "; ".join(reasons)}
-        await emit("gate.pending_human", {"intent_id": intent["intent_id"], "customer_id": intent["customer_id"],
-                                          "amount": intent["amount"], "product_id": intent["product_id"],
-                                          "reason": "; ".join(reasons)}, severity="warning")
-        return GateDecision(intent_id=intent["intent_id"], status="pending_human", human_required=True,
-                            human_reason="; ".join(reasons), signatures=[Signature(**s) for s in sigs]).model_dump()
+    now = datetime.now(timezone.utc)
+    ev = multisig.evaluate(intent, sigs, _verify, config.load_json("policy.json"), now=now)
+    await _report_problems(intent, ev.problems)
+    if ev.status == "rejected" or ev.status == "collecting":
+        reasons = [p["reason"] for p in ev.problems] + [
+            f"{s['signer']}: {s.get('reason', '')}" for s in sigs if s.get("decision") != "approve"]
+        return await _reject(intent, sigs, reasons)
+    if ev.status == "pending_human":
+        PENDING[intent["intent_id"]] = {"intent": intent, "signatures": sigs, "reason": ev.human_reason,
+                                        "received_at": now.isoformat()}
+        await emit("gate.pending_human", {**_brief(intent), "reason": ev.human_reason}, severity="warning")
+        return _decision(intent, "pending_human", sigs, human_required=True, human_reason=ev.human_reason)
     return await _execute(intent, sigs)
 
 
 async def pending(data: dict, ctx: dict) -> dict:
     """List intents waiting for a human key."""
-    return {"items": [{"intent": p["intent"], "signatures": p["signatures"], "reason": p["reason"]} for p in PENDING.values()]}
+    return {"items": [{"intent": {k: v for k, v in p["intent"].items() if k != "nonce"},
+                       "signatures": p["signatures"], "reason": p["reason"], "received_at": p["received_at"]}
+                      for p in PENDING.values()]}
 
 
 async def human_decision(data: dict, ctx: dict) -> dict:
-    """Apply the human key (requires a valid human JWT with scope human:approve)."""
+    """Apply the human key: a valid human JWT (scope human:approve) AND a human Ed25519 signature on the intent hash."""
+    intent_id = data.get("intent_id", "")
+    p = PENDING.get(intent_id)
     try:
         claims = crypto.verify_jwt(data.get("human_jwt", ""), aud="gate")
         if claims.get("iss") != "human" or "human:approve" not in claims.get("scope", []):
             raise ValueError("not a human approval token")
     except ValueError as e:
-        await emit("security.alert", {"type": "fake_approval", "severity": "critical",
-                                      "details": {"intent_id": data.get("intent_id"), "reason": str(e)}}, severity="critical")
+        await _alert("fake_approval", (p or {}).get("intent", {"intent_id": intent_id}), str(e))
         raise SkillRejected(f"human approval refused: {e}")
-    p = PENDING.pop(data.get("intent_id", ""), None)
     if not p:
         raise SkillRejected("unknown or already decided intent")
     intent, sigs = p["intent"], p["signatures"]
-    decision = "approve" if data.get("decision") == "approve" else "refuse"
-    human = Signature(intent_id=intent["intent_id"], intent_hash=intent["intent_hash"], signer="human",
-                      decision=decision, reason=f"validated by {claims.get('sub', 'operator')}",
-                      signature_b64=data.get("human_jwt", "").split(".")[-1]).model_dump()
-    await emit("gate.signature", {"intent_id": intent["intent_id"], "signer": "human", "decision": decision,
-                                  "reason": human["reason"]})
-    if decision != "approve":
-        await emit("gate.rejected", {"intent_id": intent["intent_id"], "customer_id": intent["customer_id"],
-                                     "amount": intent["amount"], "product_id": intent["product_id"],
-                                     "reasons": ["human: rejected"]}, severity="warning")
-        return GateDecision(intent_id=intent["intent_id"], status="rejected",
-                            signatures=[Signature(**s) for s in sigs + [human]]).model_dump()
-    return await _execute(intent, sigs + [human])
+    received = datetime.fromisoformat(p["received_at"])
+    if datetime.now(timezone.utc) - received > HUMAN_WINDOW:
+        PENDING.pop(intent_id, None)
+        return await _reject(intent, sigs, ["human window expired"])
+
+    human = data.get("human_signature") or {}
+    ev = multisig.evaluate(intent, sigs + [human], _verify, config.load_json("policy.json"), now=received)
+    if ev.problems or multisig.HUMAN not in [s.get("signer") for s in ev.signatures]:
+        reason = "; ".join(p_["reason"] for p_ in ev.problems) or "missing human signature"
+        await _alert("fake_approval", intent, reason)
+        raise SkillRejected(f"human signature refused: {reason}")
+
+    PENDING.pop(intent_id, None)
+    await emit("gate.signature", {"intent_id": intent_id, "signer": "human", "decision": human.get("decision"),
+                                  "reason": f"validated by {claims.get('sub', 'operator')}"})
+    all_sigs = sigs + [human]
+    if ev.status != "approved":
+        return await _reject(intent, all_sigs, ["human: rejected"])
+    return await _execute(intent, all_sigs)
 
 
 app = create_agent_app("gate", "Multisig Gate: 3 agent signatures + human key before any payment", {
