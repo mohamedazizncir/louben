@@ -79,6 +79,13 @@ Moved to Claude B. You only create its stub in phase 0 and the recommendations p
 ### Seed data (`data/seed.py`)
 * 30 days of history: about 300 interactions, realistic objections mix, conversion around 15%, payments succeeded/refused/pending, satisfaction scores. Writes to business.db and emits nothing.
 
+### "Built for 9antra" integration (shows the solution is usable by them)
+* Do NOT copy 9antra's website, logo, wordmark or visual identity. The UI is our own original design.
+* `hub/static/widget.js`: an embeddable chat bubble (floating button, bottom right) that opens the voice/text Sales Agent. One line to install on any website: `<script src="http://localhost:8000/static/widget.js" data-org="9antra"></script>`.
+* `/partner-demo` page: a neutral, clearly fictional training center landing page (our own name and design, for example "Demo Academy") with the widget installed, plus a visible banner: "Prototype built for 9antra, TechX 2026. Not an official 9antra page."
+* `config/catalog.json` follows 9antra's public offer types (training courses, internships, PFE supervision) with fake names, prices and durations. Label it "demo data".
+* README section "How 9antra would plug it in": 1. add the widget script, 2. load their real catalog JSON, 3. connect their payment gateway sandbox, 4. their team uses `/dashboard`.
+
 ### Dashboard polish
 * Recommendations panel with approve/reject buttons, live agent feed (every SSE event, colored by source).
 * Clean, minimal, high contrast for the projector. Test `/demo` at 1366x768 and 1920x1080.
