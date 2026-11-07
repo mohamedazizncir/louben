@@ -3,6 +3,27 @@
 This file is the single source of truth for both Claude sessions.
 Read it fully before writing any code. Do not edit it except the "Contract changelog" section at the end.
 
+## 0. DEMO FIRST (top priority, read this twice)
+
+The jury grades what it SEES. A feature that is not visible on screen does not exist.
+Build a thin vertical slice that works end to end first, then add depth. Never leave the demo broken on `main`.
+
+The 3 things that must work perfectly, in this order:
+
+1. **Talk to the agent by voice.** `client.html`: big mic button, Web Speech API speech to text (fr-FR / en-US toggle), agent answers out loud with speech synthesis, chat bubbles, text input fallback. Works in Chrome/Edge. Latency target: under 3s per reply (fallback answers if the LLM is slow).
+2. **See the agents collaborate live.** `#agent-graph`: network graph (Cytoscape.js from CDN) with the 8 agents as nodes. Every A2A call animates an edge (from → to) with the skill name, green if ok, red if refused. Click a node: side panel with its agent card, its last 10 messages, and its permissions (ACL). Multisig signatures appear as 4 keys lighting up next to the Gate node.
+3. **Interactive dashboard for every KPI.** Every KPI of spec section 4 is a clickable card or chart. Global filters (date range, segment, product, channel). Click any KPI or chart bar: drill down table of the underlying interactions/payments/alerts. Plus a **knowledge graph** `#knowledge-graph` (Cytoscape.js): customers, products, objections, payments, alerts as nodes, linked by relations (customer → interested_in → product, customer → raised → objection, payment → flagged_by → alert). Click a node to highlight its neighborhood.
+
+Screen layout for the demo (one page `/demo`, projector friendly, high contrast):
+```
+| Customer chat (voice)  |   Live agent graph   |  KPI cards + immunity score |
+|        30%             |         40%          |            30%              |
+| Event feed / alerts / gate queue (bottom strip, full width)                 |
+```
+Plus `/dashboard` (full KPI + knowledge graph + trust panels) for the "dashboard tour" part of the pitch.
+
+Rule for both sessions: **at every checkpoint, the full demo script must run on `main`**, even if some agents are still partly stubbed.
+
 ## 1. The product in one paragraph
 
 A generalist autonomous FinTech team of 8 A2A services that presents an offer to a customer (voice or text), understands needs and objections, runs a sandbox payment, analyzes results and recommends improvements, while protecting every operation with 3 innovations:
@@ -17,8 +38,10 @@ Default demo catalog: AI training courses (9antra use case from the spec). The c
 
 | Session | Name | Scope | Human driver |
 |---|---|---|---|
-| Claude A | BUSINESS | Sales, Intel, Analyst, Strategy, Hub, Dashboard shell, customer UI, seed data | Aziz |
-| Claude B | TRUST | Payment, Security, Multisig Gate, Red Team, crypto, audit log, trust panels | Sridi, with Bayla validating every security decision |
+| Claude A | BUSINESS + DEMO UI | Sales (voice), Intel, Analyst, Hub, demo page, agent graph, knowledge graph, KPI dashboard, seed data | Aziz |
+| Claude B | TRUST | Payment, Security, Multisig Gate, Red Team, Strategy, crypto, audit log, trust panels | Sridi, with Bayla validating every security decision |
+
+(Strategy moved to B so A can focus on the demo UI.)
 
 Bayla also owns: the attack scenarios list, the security slides, and the live attack during the demo.
 
@@ -44,7 +67,7 @@ If both sessions run on the same PC, session B sets `PORT_BASE=8100`.
 | +2 | Intel Agent | `agents/intel/` | A |
 | +3 | Payment Agent | `agents/payment/` | B |
 | +4 | Analyst Agent | `agents/analyst/` | A |
-| +5 | Strategy Agent | `agents/strategy/` | A |
+| +5 | Strategy Agent | `agents/strategy/` | B |
 | +6 | Security Agent | `agents/security/` | B |
 | +7 | Red Team Agent | `agents/redteam/` | B |
 | +8 | Multisig Gate | `gate/` | B |
@@ -79,7 +102,7 @@ louben/
   agents/sales/                A
   agents/intel/                A
   agents/analyst/              A
-  agents/strategy/             A
+  agents/strategy/             B
   agents/payment/              B
   agents/security/             B
   agents/redteam/              B
@@ -87,10 +110,13 @@ louben/
   hub/main.py                  A   includes both routers
   hub/routes_business.py       A
   hub/routes_trust.py          B
-  hub/static/index.html        A   dashboard shell with empty panel containers
-  hub/static/business.js       A   business panels
-  hub/static/trust.js          B   trust panels
-  hub/static/client.html       A   customer voice/text chat page
+  hub/static/index.html        A   /dashboard shell with empty panel containers
+  hub/static/demo.html         A   /demo page (Section 0 layout)
+  hub/static/business.js       A   KPI cards, charts, filters, drill downs
+  hub/static/graph.js          A   live agent graph + knowledge graph (Cytoscape.js)
+  hub/static/voice.js          A   Web Speech API (mic + speech synthesis)
+  hub/static/trust.js          B   trust panels (alerts, gate keys, immunity, rules, audit)
+  hub/static/client.html       A   customer voice/text chat page (also embedded in /demo)
   hub/static/style.css         A
   data/seed.py                 A   synthetic business history
   data/seed_trust.py           B   synthetic payments/fraud history
@@ -205,7 +231,8 @@ Event          {event_id, ts, source, type, severity: "info"|"warning"|"critical
 | payment | `sign` | PaymentIntent | Signature | gate |
 | payment | `execute` | {intent_id, gate_proof} | PaymentResult | gate only |
 | analyst | `ingest` | Event | {ok} | hub |
-| analyst | `kpis` | {} | KPI dict (Section 10) | hub, strategy |
+| analyst | `kpis` | {filters?: {from, to, segment, product_id, channel}} | KPI dict (Section 10) | hub, strategy |
+| analyst | `drilldown` | {kpi, filters?} | {columns[], rows[]} | hub |
 | analyst | `sign` | PaymentIntent | Signature | gate |
 | strategy | `recommend` | {} | [Recommendation] | hub (button + every 2 min) |
 | gate | `submit` | PaymentIntent | GateDecision | payment |
@@ -230,6 +257,9 @@ All services call `common.events.emit(type, data, severity)`. The hub stores eve
 
 Event types:
 ```
+a2a.call,            # emitted automatically by common/a2a.py on EVERY call:
+                     # data = {from, to, skill, status: "ok"|"refused"|"error", latency_ms, summary}
+                     # this event drives the live agent graph
 interaction.message, interaction.ended, intel.report,
 offer.checked, input.checked,
 payment.intent_created, gate.signature, gate.pending_human, gate.approved, gate.rejected, payment.status,
@@ -246,11 +276,13 @@ recent_recommendations [Recommendation]
 ```
 
 Hub REST (for the dashboard):
-* A (`routes_business.py`): `GET /api/kpis`, `POST /api/chat`, `POST /api/chat/end`, `GET /api/recommendations`, `POST /api/recommendations/run`, `GET /api/events`
+* A (`routes_business.py`): `GET /api/kpis?from&to&segment&product_id&channel`, `GET /api/drilldown?kpi=...&filters`, `POST /api/chat`, `POST /api/chat/end`, `GET /api/events`, `GET /api/agents` (cards + ACL for the graph side panel), `GET /api/graph/knowledge?filters` ({nodes[{id, type, label}], edges[{source, target, relation}]}), `GET /api/recommendations`, `POST /api/recommendations/run`, `POST /api/recommendations/decision`
+  (the recommendation routes proxy to B's strategy agent through the contract)
 * B (`routes_trust.py`): `POST /api/login` (PIN -> human JWT), `GET /api/gate/pending`, `POST /api/gate/decision`, `POST /api/redteam/run`, `GET /api/redteam/score`, `GET /api/rules`, `POST /api/rules/decision`, `GET /api/audit`, `GET /api/audit/verify`
 
 Dashboard panels in `index.html` (divs with these ids):
-* A fills: `#kpi-row`, `#conversion-chart`, `#objections-chart`, `#payments-chart`, `#revenue-chart`, `#recommendations`, `#agent-feed`
+* A fills: `#filters`, `#kpi-row`, `#conversion-chart`, `#objections-chart`, `#payments-chart`, `#revenue-chart`, `#satisfaction-chart`, `#recommendations`, `#agent-feed`, `#agent-graph`, `#knowledge-graph`, `#drilldown` (modal)
+* Every KPI card and chart is clickable and opens `#drilldown`. Filters refresh every panel.
 * B fills: `#security-alerts`, `#gate-queue`, `#immunity-score`, `#redteam-log`, `#rules-queue`, `#audit-trail`
 
 ## 11. Spec coverage checklist
@@ -269,7 +301,9 @@ Dashboard panels in `index.html` (divs with these ids):
 | Traceability, searchable logs | audit.py + `/api/audit` + panel | B |
 | Prompt injection protection | check_input + spotlighting in sales prompt | B + A |
 | Human validation before sensitive financial action | gate pending_human | B |
-| Recommendations backed by data | strategy uses kpis + intel | A |
+| Recommendations backed by data | strategy uses kpis + intel | B |
+| Visible agent collaboration (exchanges between agents) | live agent graph from `a2a.call` events | A |
+| Interactive dashboard with history | filters, drill downs, knowledge graph | A |
 | Dashboard: every KPI in spec section 4 | Section 10 panels | A + B |
 | Clear limits of the prototype | README "Limits" section | A |
 | Bonus: real time voice | Web Speech API | A |
@@ -300,11 +334,11 @@ If a conflict appears in a file you don't own: take the owner's version. Never r
 
 | Time | Checkpoint | Definition of done |
 |---|---|---|
-| 00:30 | CP0 skeleton | `run_all.py` starts 9 services, every stub answers its skills with fake data, hub dashboard opens |
-| 02:00 | CP1 agents real | A: sales chat + intel + analyst KPIs real. B: crypto, auth, check_input, check_offer, payment simulated real |
-| 03:30 | CP2 happy path | customer chats, gets an offer, pays, 3 signatures, payment succeeds, KPIs update live |
-| 05:00 | CP3 trust layer | human approval works, 10 red team attacks run, immunity score + alerts + audit on dashboard |
-| 06:30 | CP4 demo ready | seed data loaded, both demo scripts pass, voice works in Chrome, forecast + recommendations shown |
+| 00:30 | CP0 skeleton | `run_all.py` starts 9 services, stubs answer, `/demo` opens, **agent graph animates on stub calls** |
+| 02:00 | CP1 demo slice | **voice chat works end to end** (speak, agent answers out loud), live agent graph, KPI cards on seed data. B: auth + check_input + check_offer + simulated payment real |
+| 03:30 | CP2 happy path | spoken sale → offer → 3 signatures lighting up → payment succeeds → KPIs update live. Filters + drill downs work |
+| 05:00 | CP3 trust layer | human approval, red team campaign live with immunity score, knowledge graph, strategy recommendations |
+| 06:30 | CP4 demo ready | full demo script rehearsed 2 times without crash, backup scripts pass, UI polished for projector |
 | 07:00 | CODE FREEZE | only bug fixes after this |
 | 07:00 to 10:00 | Slides, backup demo video, 3 pitch rehearsals | |
 
@@ -319,4 +353,6 @@ If a conflict appears in a file you don't own: take the owner's version. Never r
 ## 15. Contract changelog
 
 Append only. Format: `time | session | change | why`. Only add optional fields, never rename or remove.
+
+23:55 | human | Section 0 "Demo first" added; Strategy moved to B; a2a.call event; kpis filters + drilldown skill; graph, voice, demo page files; checkpoints reprioritized | jury grades the working demo
 

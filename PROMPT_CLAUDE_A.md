@@ -2,6 +2,8 @@ You are Claude A (BUSINESS) in a 2-session hackathon team. The repo is C:\Users\
 
 FIRST: read PLAN.md completely. It is the contract with Claude B (TRUST), who works in parallel. Follow it exactly.
 
+YOUR #1 PRIORITY IS THE VISIBLE DEMO (PLAN.md Section 0): voice conversation with the agent, live agent collaboration graph, interactive dashboard where every KPI is clickable, knowledge graph. Build a thin working slice first, polish later. `main` must always run the demo.
+
 ## Hard rules
 1. Only edit files that PLAN.md Section 5 assigns to A. Never touch B's files after CP0.
 2. Never change a model in `common/schemas.py` after CP0, except adding optional fields logged in the PLAN.md changelog.
@@ -17,10 +19,36 @@ Build the full skeleton so both sessions can run the whole system from minute on
 2. `common/`: `config.py`, `schemas.py` (all models of Section 7), `a2a.py` (Section 6: `create_agent_app`, `call`, retries + timeout + clear errors), `llm.py`, `events.py`.
 3. Simple first versions of B's files (they take over at CP0): `common/crypto.py` (Ed25519 keygen, sign/verify bytes, JWT sign/verify, card sign/verify), `common/audit.py` (append + list, hash chain can be basic), `scripts/gen_keys.py`, `config/acl.json`, `config/policy.json`, `hub/routes_trust.py` (endpoints returning fake data), `hub/static/trust.js` (renders placeholders).
 4. Stub `main.py` for all 8 agents + gate: each exposes its card and its skills from Section 8 returning realistic fake data that matches the schemas.
-5. `hub/main.py` (events endpoint, SSE `/stream`, static files, includes both routers), `hub/static/index.html` with all panel ids of Section 10, `style.css`, `client.html` (chat page).
+5. `hub/main.py` (events endpoint, SSE `/stream`, static files, `/demo` and `/dashboard` routes, includes both routers), `hub/static/index.html` with all panel ids of Section 10, `demo.html` (Section 0 layout), `style.css`, `client.html`, and a first `graph.js` that draws the 8 agent nodes and animates an edge on every `a2a.call` event. `common/a2a.py` must emit `a2a.call` on every call (success, refusal or error).
 6. `scripts/run_all.py` (generates keys if missing, starts all services, Ctrl+C stops all) and `scripts/smoke_test.py` (calls each skill once, then imports and runs `smoke_a.run()` and `smoke_b.run()` if they exist).
 7. `config/catalog.json`: 6 AI training courses (fake), prices between 300 and 1500 TND.
 8. Run it, fix it, merge to main, tell me "CP0 done" so Claude B can pull.
+
+## Demo UI (build right after CP0, must work at CP1 02:00)
+
+### Voice (`hub/static/voice.js`, `client.html`)
+* Big mic button, push to talk. Web Speech API `SpeechRecognition` with fr-FR / en-US toggle, interim transcript shown live.
+* Agent reply spoken with `speechSynthesis` (pick a matching voice), text bubble at the same time. Stop button.
+* Text input fallback always visible. Show a clear message if the browser has no speech support.
+* Keep each reply short (2 to 3 sentences) so it sounds natural.
+
+### Live agent graph (`hub/static/graph.js`, `#agent-graph`)
+* Cytoscape.js (cdnjs), fixed readable layout: customer on the left, Sales, Intel, Analyst, Strategy, Payment, Gate, Security, Red Team.
+* Each `a2a.call` event: animate a moving dot along the edge, label with the skill, green ok / red refused / orange error, node pulses while working.
+* Red Team node is red and its attack edges are dashed.
+* Next to Gate: 4 key icons (payment, security, analyst, human) that light up on `gate.signature` events.
+* Click a node: side panel with agent card, permissions from `/api/agents`, last 10 messages.
+
+### Interactive KPI dashboard (`business.js`, `#filters`, `#drilldown`)
+* Global filters: date range, segment, product, channel. They refresh every panel.
+* KPI cards: interactions, interested, conversion, revenue, payments (succeeded/refused/pending), satisfaction, alerts. Charts: conversion over time, top objections, payments by status, revenue + 7 day forecast, satisfaction.
+* Every card and chart bar is clickable and opens a drill down table (`/api/drilldown`).
+* Numbers animate when they change (SSE).
+
+### Knowledge graph (`graph.js`, `#knowledge-graph`)
+* Nodes: customers, products, objections, payments, alerts (different shape/color per type). Edges: interested_in, raised, paid, flagged_by.
+* Click a node: highlight its neighborhood and show details. Search box. Respects the global filters.
+* Data from `/api/graph/knowledge`, built from business.db + alert events.
 
 ## Your agents after CP0
 
@@ -41,21 +69,19 @@ Build the full skeleton so both sessions can run the whole system from minute on
 
 ### Analyst Agent (`agents/analyst/`)
 * `ingest` consumes all events (hub forwards them) into `data/business.db`.
-* `kpis` returns the exact dict of PLAN.md Section 10.
+* `kpis` returns the exact dict of PLAN.md Section 10 and accepts the filters. `drilldown` returns the rows behind any KPI.
 * Forecast: revenue for the next 7 days from the daily history (numpy linear regression or scikit-learn). Label it "simulated".
 * `sign`: approve only if discount_pct is within `config/policy.json` for the segment AND the customer has fewer than 2 refused intents. Sign with the analyst key through `common/crypto.py`.
 
-### Strategy Agent (`agents/strategy/`)
-* Reads `analyst.kpis` + recent intel reports. Produces 3 Recommendations, each with evidence numbers (example: "price objections = 42% of 120 interactions").
-* LLM with fallback rules. Status `proposed` until a human approves on the dashboard.
+### Strategy Agent
+Moved to Claude B. You only create its stub in phase 0 and the recommendations panel that calls `/api/recommendations*`.
 
 ### Seed data (`data/seed.py`)
 * 30 days of history: about 300 interactions, realistic objections mix, conversion around 15%, payments succeeded/refused/pending, satisfaction scores. Writes to business.db and emits nothing.
 
-### Dashboard (`hub/static/business.js`, `index.html`, `client.html`)
-* KPI row, conversion, objections, payments, revenue + forecast charts, recommendations with approve button, live agent feed (every event from SSE, colored by source, showing agent to agent messages).
-* Clean, minimal, one screen, works in dark room projection (high contrast).
-* `client.html`: chat bubbles, mic button (Web Speech API, `fr-FR` and `en-US`), speech synthesis for replies, text fallback.
+### Dashboard polish
+* Recommendations panel with approve/reject buttons, live agent feed (every SSE event, colored by source).
+* Clean, minimal, high contrast for the projector. Test `/demo` at 1366x768 and 1920x1080.
 
 ### Also
 * `scripts/demo_business.py`: runs demo acts 1, 2 and 5 automatically (backup if voice fails).
