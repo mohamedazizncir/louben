@@ -2,7 +2,8 @@
 
 * intent_hash = SHA-256 of the canonical JSON of the intent fields, so any
   change (amount, discount, token...) changes the hash and breaks signatures.
-* Each signer signs (intent_id, intent_hash, signer, decision, reason).
+* Each signer signs {intent_id, intent_hash, signer, decision[, risk_level]},
+  the same payload as common.crypto.sign_obj (Analyst, owned by A, relies on it).
 * Payment, Security and Analyst must all approve; any refusal rejects.
 * A human key is added when the amount, the discount or the risk is high.
 * nonce + 5 minute expiry stop replays; the gate_proof lets Payment check
@@ -17,7 +18,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-import re
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -30,7 +30,8 @@ MAX_TTL = timedelta(minutes=5, seconds=5)
 MONEY_DECIMALS = 3  # TND has millimes
 
 HASH_FIELDS = ("intent_id", "customer_id", "product_id", "amount", "discount_pct",
-               "installments", "payment_token", "nonce", "expires_at", "created_at")
+               "installments", "payment_token", "nonce", "expires_at", "created_at",
+               "segment")  # segment drives the discount cap, so it is hashed too
 
 RISK_ORDER = ["none", "low", "medium", "high", "critical"]
 HUMAN_RISK_AT = "medium"
@@ -131,29 +132,40 @@ def human_requirement(intent, policy: dict, risk_level: str = "none") -> tuple[b
 # Signatures
 # --------------------------------------------------------------------------
 
-def signing_payload(intent_id: str, intent_hash: str, signer: str,
-                    decision: str, reason: str) -> bytes:
-    return canonical_json({"intent_id": intent_id, "intent_hash": intent_hash,
-                           "signer": signer, "decision": decision,
-                           "reason": reason}).encode()
+def signing_payload_dict(intent_id: str, intent_hash: str, signer: str, decision: str,
+                         risk_level: str | None = None) -> dict:
+    body = {"intent_id": intent_id, "intent_hash": intent_hash, "signer": signer,
+            "decision": decision}
+    if risk_level is not None:
+        body["risk_level"] = risk_level  # signed, so it cannot be stripped in transit
+    return body
+
+
+def signing_payload(intent_id: str, intent_hash: str, signer: str, decision: str,
+                    risk_level: str | None = None) -> bytes:
+    """Byte-identical to common.crypto.canonical(signing_payload_dict(...))."""
+    body = signing_payload_dict(intent_id, intent_hash, signer, decision, risk_level)
+    return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
 def make_signature(intent, signer: str, decision: str, reason: str,
-                   sign: Sign, now: datetime | None = None) -> dict:
+                   sign: Sign, now: datetime | None = None,
+                   risk_level: str | None = None) -> dict:
     """Build a Signature dict (PLAN.md Section 7) over the intent's hash."""
     intent_id, intent_hash = _get(intent, "intent_id"), _get(intent, "intent_hash")
-    payload = signing_payload(intent_id, intent_hash, signer, decision, reason)
-    return {"intent_id": intent_id, "intent_hash": intent_hash, "signer": signer,
-            "decision": decision, "reason": reason, "signature_b64": sign(payload),
-            "ts": _now(now).isoformat()}
+    payload = signing_payload(intent_id, intent_hash, signer, decision, risk_level)
+    sig = {"intent_id": intent_id, "intent_hash": intent_hash, "signer": signer,
+           "decision": decision, "reason": reason, "signature_b64": sign(payload),
+           "ts": _now(now).isoformat()}
+    if risk_level is not None:
+        sig["risk_level"] = risk_level
+    return sig
 
 
 def _risk_of(sig) -> str:
+    """Only the signed risk_level counts; free text in `reason` is ignored."""
     level = _get(sig, "risk_level")
-    if level in RISK_ORDER:
-        return level
-    m = re.search(r"\brisk=(\w+)", _get(sig, "reason", "") or "")
-    return m.group(1) if m and m.group(1) in RISK_ORDER else "none"
+    return level if level in RISK_ORDER else "none"
 
 
 def _max_risk(levels: Iterable[str]) -> str:
@@ -206,7 +218,7 @@ def evaluate(intent, signatures: list, verify: Verify, policy: dict,
                              "reason": "signature is for a different intent_hash"})
             continue
         payload = signing_payload(intent_id, real_hash, signer,
-                                  _get(sig, "decision"), _get(sig, "reason", ""))
+                                  _get(sig, "decision"), _get(sig, "risk_level"))
         if not verify(signer, payload, _get(sig, "signature_b64", "")):
             kind = "fake_approval" if signer == HUMAN else "spoofed_agent"
             problems.append({"type": kind, "signer": signer,

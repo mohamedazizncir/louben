@@ -128,7 +128,7 @@ def _scan_variant(text: str) -> dict[str, float]:
         hits["exfiltration:other_customers"] = 0.85
     if _DISCOUNT_WORDS.search(text) and any(
             int(p) >= EXCESSIVE_DISCOUNT_PCT for p in _PERCENT.findall(text)):
-        hits["discount_abuse:excessive_discount"] = 0.5
+        hits["discount_abuse:excessive_discount"] = 0.3  # haggling alone is not an attack
     return hits
 
 

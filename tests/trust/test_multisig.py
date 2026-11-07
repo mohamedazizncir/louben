@@ -1,4 +1,5 @@
 import base64
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -7,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from gate.multisig import (
     REQUIRED_SIGNERS, canonical_json, check_freshness, compute_intent_hash,
     evaluate, finalize_intent, human_requirement, make_gate_proof,
-    make_signature, verify_gate_proof,
+    make_signature, signing_payload, verify_gate_proof,
 )
 
 POLICY = {"human_threshold": 1000, "human_discount_pct": 10}
@@ -207,14 +208,46 @@ def test_unknown_signer_is_ignored_and_reported():
     assert ev.status == "rejected"
 
 
-def test_medium_risk_in_security_signature_requires_human():
+def _with_security(intent, **kw):
+    sigs = [s for s in sign_all(intent) if s["signer"] != "security"]
+    sigs.append(make_signature(intent, "security", "approve", "1 recent alert",
+                               signer_fn(KEYS["security"]), now=NOW, **kw))
+    return sigs
+
+
+def test_signed_medium_risk_from_security_requires_human():
     i = base_intent()
-    sigs = sign_all(i)
-    sec = next(s for s in sigs if s["signer"] == "security")
-    sigs.remove(sec)
-    sigs.append(make_signature(i, "security", "approve", "risk=medium; 1 recent alert",
-                               signer_fn(KEYS["security"]), now=NOW))
+    sigs = _with_security(i, risk_level="medium")
+    assert sigs[-1]["risk_level"] == "medium"
     assert evaluate(i, sigs, verify, POLICY, now=NOW).status == "pending_human"
+
+
+def test_stripping_signed_risk_level_breaks_the_signature():
+    i = base_intent()
+    sigs = _with_security(i, risk_level="medium")
+    sigs[-1] = {k: v for k, v in sigs[-1].items() if k != "risk_level"}  # attacker hides the risk
+    ev = evaluate(i, sigs, verify, POLICY, now=NOW)
+    assert ev.status == "rejected"
+    assert any(p["type"] == "spoofed_agent" for p in ev.problems)
+
+
+def test_unsigned_risk_text_in_reason_is_ignored():
+    i = base_intent()
+    sigs = [s for s in sign_all(i) if s["signer"] != "security"]
+    sigs.append(make_signature(i, "security", "approve", "risk=low", signer_fn(KEYS["security"]), now=NOW))
+    assert evaluate(i, sigs, verify, POLICY, now=NOW).status == "approved"
+
+
+def test_signing_payload_matches_common_crypto_canonical_format():
+    # Analyst (owned by A) signs crypto.canonical({intent_id, intent_hash, signer, decision})
+    body = {"intent_id": "i-1", "intent_hash": "abc", "signer": "analyst", "decision": "approve"}
+    expected = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    assert signing_payload("i-1", "abc", "analyst", "approve") == expected
+
+
+def test_changing_segment_changes_hash():
+    i = base_intent(segment="individual")
+    assert compute_intent_hash({**i, "segment": "company"}) != i["intent_hash"]
 
 
 def test_decision_dict_has_schema_fields():

@@ -72,3 +72,9 @@ def test_missing_field_is_refused_not_crashing():
 
 def test_to_dict_matches_schema_fields():
     assert set(check_offer(offer(), "new", POLICY).to_dict()) == {"allowed", "max_discount_pct", "reason"}
+
+
+def test_reads_installments_allowed_key_from_real_policy_file():
+    policy = {"max_discount_pct": {"individual": 10}, "installments_allowed": [1, 2]}
+    assert not check_offer(offer(installments=3), "individual", policy).allowed
+    assert check_offer(offer(installments=2), "individual", policy).allowed

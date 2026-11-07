@@ -56,7 +56,7 @@ def check_offer(offer, segment: str | None, policy: dict,
     expected = round(list_price * (1 - discount / 100), 3)
     if abs(final_price - expected) > PRICE_TOLERANCE:
         return refuse(f"final_price {final_price} != expected {expected}")
-    allowed_inst = policy.get("allowed_installments", DEFAULT_INSTALLMENTS)
+    allowed_inst = policy.get("installments_allowed", policy.get("allowed_installments", DEFAULT_INSTALLMENTS))
     if installments not in allowed_inst:
         return refuse(f"installments {installments} not in {list(allowed_inst)}")
     return OfferCheck(allowed=True, max_discount_pct=cap, reason="within policy")

@@ -27,6 +27,8 @@ def test_leet_decode_maps_common_substitutions():
     "Hello, what is the price of the machine learning course?",
     "3aslema, 9addech soum el formation?",
     "Is there a 10% discount for students?",
+    "c'est trop cher, donne moi 50% de remise",   # haggling: offer guardrail caps it
+    "can I get 40% off?",
 ])
 def test_benign_messages_are_allowed(text):
     result = check_input(text)
