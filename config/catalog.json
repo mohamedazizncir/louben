@@ -1,0 +1,30 @@
+{
+  "_note": "DEMO DATA. Fake names, prices and durations that follow 9antra's public offer types (training courses, internships, PFE supervision). Replace with the real catalog to go live.",
+  "org": "Demo Academy",
+  "products": [
+    {"product_id": "ai-fundamentals", "name": "AI Fundamentals with Python", "type": "training", "duration": "6 weeks",
+     "description": "Python, data basics and your first machine learning models.", "list_price": 450, "currency": "TND",
+     "tags": ["ai", "python", "beginner", "student", "ia", "debutant", "machine learning"]},
+    {"product_id": "genai-agents", "name": "Generative AI and AI Agents", "type": "training", "duration": "8 weeks",
+     "description": "LLMs, prompt engineering, RAG and multi agent apps.", "list_price": 750, "currency": "TND",
+     "tags": ["genai", "llm", "agents", "chatgpt", "rag", "agent", "generative", "generative ai"]},
+    {"product_id": "ml-bootcamp", "name": "Machine Learning Engineer Bootcamp", "type": "training", "duration": "12 weeks",
+     "description": "From models to production: MLOps, deep learning, deployment.", "list_price": 1200, "currency": "TND",
+     "tags": ["ml", "deep learning", "mlops", "advanced", "career", "job", "engineer"]},
+    {"product_id": "data-analytics", "name": "Data Analytics and Power BI", "type": "training", "duration": "6 weeks",
+     "description": "SQL, dashboards and business intelligence.", "list_price": 550, "currency": "TND",
+     "tags": ["data", "bi", "power bi", "sql", "dashboard", "analytics", "excel"]},
+    {"product_id": "fullstack-web", "name": "Full Stack Web Development", "type": "training", "duration": "10 weeks",
+     "description": "React, Node.js, databases and deployment.", "list_price": 900, "currency": "TND",
+     "tags": ["web", "react", "node", "javascript", "fullstack", "developer", "site"]},
+    {"product_id": "pfe-supervision", "name": "PFE Supervision Program", "type": "pfe", "duration": "4 to 6 months",
+     "description": "Final year project with a mentor, weekly reviews and defense prep.", "list_price": 600, "currency": "TND",
+     "tags": ["pfe", "final year", "project", "stage", "internship", "mentor"]},
+    {"product_id": "summer-internship", "name": "Summer Internship Track", "type": "internship", "duration": "2 months",
+     "description": "Real project in a team, with a certificate.", "list_price": 300, "currency": "TND",
+     "tags": ["internship", "stage", "summer", "ete", "experience"]},
+    {"product_id": "corporate-ai-pack", "name": "Corporate AI Upskilling (5 seats)", "type": "training", "duration": "8 weeks",
+     "description": "AI training for a team of 5, adapted to your company.", "list_price": 3200, "currency": "TND",
+     "tags": ["company", "entreprise", "team", "equipe", "employees", "corporate", "rh", "hr"]}
+  ]
+}

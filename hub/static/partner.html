@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%2322d3ee%22/%3E%3C/svg%3E" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Academy · fictional partner site</title>
+  <style>
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #f6f7fb; color: #111827; }
+    .banner { background: #111827; color: #fde68a; text-align: center; padding: 9px; font-size: 13px; }
+    header { display: flex; align-items: center; padding: 18px 6vw; background: #fff; border-bottom: 1px solid #e5e7eb; }
+    header b { font-size: 20px; } header b span { color: #7c3aed; }
+    header nav { margin-left: auto; display: flex; gap: 22px; color: #4b5563; font-size: 14px; }
+    .hero { padding: 70px 6vw 50px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: center; }
+    .hero h1 { font-size: 44px; line-height: 1.1; margin: 0 0 16px; }
+    .hero p { color: #4b5563; font-size: 18px; line-height: 1.6; }
+    .hero .cta { display: inline-block; margin-top: 18px; background: #7c3aed; color: #fff; padding: 13px 22px; border-radius: 10px; font-weight: 600; }
+    .hero .art { height: 280px; border-radius: 20px; background: linear-gradient(135deg, #ede9fe, #cffafe); display: grid; place-items: center; font-size: 15px; color: #4c1d95; }
+    .grid { padding: 10px 6vw 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+    .c { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+    .c .t { font-size: 12px; color: #7c3aed; text-transform: uppercase; letter-spacing: .6px; }
+    .c h3 { margin: 6px 0; font-size: 17px; } .c p { color: #6b7280; font-size: 14px; margin: 0 0 10px; }
+    .c .p { font-weight: 700; }
+    .install { margin: 0 6vw 60px; background: #111827; color: #e5e7eb; border-radius: 14px; padding: 22px; }
+    .install code { display: block; background: #0b1220; padding: 12px; border-radius: 8px; color: #67e8f9; margin-top: 10px; font-size: 13px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="banner">Prototype built for 9antra · TechX 2026 · Fictional page, not an official 9antra page. Demo data only.</div>
+  <header><b>Demo<span>Academy</span></b><nav><span>Courses</span><span>Internships</span><span>PFE</span><span>Contact</span></nav></header>
+  <section class="hero">
+    <div><h1>Learn AI, data and web with real projects.</h1>
+      <p>Courses, internships and PFE supervision. Not sure which one fits you? Click the microphone at the bottom right and just ask.</p>
+      <span class="cta">Talk to an advisor →</span></div>
+    <div class="art">Your training center's website, unchanged.<br>Only one script line added.</div>
+  </section>
+  <section class="grid" id="courses"></section>
+  <section class="install"><b>How a training center installs the advisor (one line)</b>
+    <code>&lt;script src="http://localhost:8000/static/widget.js" data-org="9antra" data-lang="fr"&gt;&lt;/script&gt;</code>
+    <div style="margin-top:10px;font-size:13px;color:#9ca3af">The advisor sells, validates discounts, secures payments with 4 keys and feeds the operator dashboard.</div></section>
+  <script>
+    fetch("/api/catalog").then(r => r.json()).then(c => {
+      document.getElementById("courses").innerHTML = c.products.map(p => `<div class="c"><div class="t">${p.type} · ${p.duration}</div>
+        <h3>${p.name}</h3><p>${p.description}</p><div class="p">${p.list_price} TND</div></div>`).join("");
+    });
+  </script>
+  <script src="/static/widget.js" data-org="9antra" data-lang="fr" data-color="#a78bfa"></script>
+</body>
+</html>
