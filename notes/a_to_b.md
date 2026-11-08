@@ -29,3 +29,10 @@ agents/{payment,security,redteam,strategy}/main.py, gate/main.py, hub/routes_tru
 4. Missing attacks: tampering (amount changed after signatures), velocity (6 intents in 20s), indirect injection through intel.
 5. `data/seed_trust.py` is picked up automatically by run_all if you create it (function `main()`).
 6. Strategy stub recommendations are basic. Make them sharper (they're in the final pitch).
+
+## CP2 (A side, merged to main)
+* `a2a.call` data now also has `started_ms` (epoch ms at call start). Optional, nothing to do on your side.
+* The agent graph REPLAYS a2a.call + payment/gate events in causal order at human speed (~0.4 s per step).
+  If a trust panel must stay in sync with the graph (e.g. light something when the gate approves), use
+  `Bus.onShown(type, fn)` instead of `Bus.on`. Same signature; without a graph on the page it fires immediately.
+* Feed lines for gate.approved / gate.pending_human / gate.rejected / payment.intent_created are now readable text.

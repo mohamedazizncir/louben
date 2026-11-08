@@ -56,6 +56,25 @@
       msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
     }
 
+    function receiptCard(it, o) {
+      if (!it || !it.intent_id) return;
+      const pay = it.payment_status || "";
+      const [cls, label] = it.status === "rejected" ? ["refused", "Rejected by the gate"]
+        : it.status === "pending_human" ? ["pending", "Waiting for human validation"]
+        : pay === "succeeded" ? ["succeeded", "Payment succeeded"]
+        : pay === "refused" ? ["refused", "Refused by the bank (sandbox)"] : ["pending", "Payment pending"];
+      const sig = (k) => { const s = (it.signatures || []).find(x => x.signer === k);
+        return `<span class="pill ${!s ? "" : s.decision === "approve" ? "ok" : "bad"}" title="${UI.esc(s ? s.reason : "not signed")}">${s ? (s.decision === "approve" ? "✓" : "✗") : "·"} ${k}</span>`; };
+      const hash = ((it.signatures || [])[0] || {}).intent_hash || "";
+      const d = document.createElement("div");
+      d.className = "offer-card receipt";
+      d.innerHTML = `<div><div class="muted">Sandbox payment · ${UI.esc(it.intent_id)}</div><b class="status-${cls}">${label}</b>
+        ${o ? `<div class="muted">${UI.money(o.final_price)}${o.installments > 1 ? ` · ${o.installments} x ${UI.money(o.final_price / o.installments)}` : ""}</div>` : ""}</div>
+        <div style="text-align:right">${["payment", "security", "analyst"].map(sig).join("")}${it.human_required ? sig("human") : ""}
+        ${hash ? `<div class="muted" style="font-family:monospace;font-size:11px;margin-top:4px">hash ${hash.slice(0, 12)}…</div>` : ""}</div>`;
+      msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+    }
+
     function greet() {
       msgs.innerHTML = "";
       st.lastOffer = null;
@@ -84,6 +103,7 @@
       if (intent.status) meta += ` · payment: ${intent.status}${intent.payment_status ? " / " + intent.payment_status : ""}`;
       bubble("agent", r.reply, meta, r.stage === "blocked" ? "blocked" : "");
       if (r.offer && r.stage !== "payment") offerCard(r.offer);
+      if (r.stage === "payment") receiptCard(r.intent, r.offer);
       Voice.speak(r.reply, st.lang);
     }
 

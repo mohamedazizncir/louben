@@ -48,7 +48,12 @@ nav a.active, nav a:hover { color: var(--text); background: #162033; }
   padding: 12px; height: calc(100vh - 56px); }
 .demo-grid .chat-col { grid-row: 1; }
 .demo-grid .graph-col { grid-row: 1; }
-.demo-grid .side-col { grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.demo-grid .side-col { grid-row: 1; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+.demo-grid .side-col > .panel { flex: none; }
+.demo-grid .side-col > .panel:last-child { flex: 1 0 auto; }
+.chat .subbar { flex-wrap: wrap; row-gap: 6px; }
+.chat .subbar button { white-space: nowrap; }
+.kpis.mini .value { white-space: nowrap; }
 .demo-grid .bottom { grid-column: 1 / 4; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; min-height: 0; }
 
 /* ---------- chat */
@@ -66,6 +71,10 @@ nav a.active, nav a:hover { color: var(--text); background: #162033; }
   font-size: 13px; display: flex; gap: 14px; align-items: center; }
 .offer-card b { font-size: 18px; color: var(--accent); }
 .offer-card s { color: var(--muted); }
+.offer-card.receipt { background: #0f1f17; border-color: #166534; align-items: center; }
+.offer-card.receipt b.status-succeeded { color: var(--green); } .offer-card.receipt b.status-refused { color: var(--red); }
+.offer-card.receipt b.status-pending { color: var(--amber); }
+.offer-card.receipt .pill { margin: 0 0 0 4px; }
 .chat .interim { padding: 0 14px; color: var(--muted); font-style: italic; min-height: 20px; font-size: 13px; }
 .chat .controls { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); align-items: center; }
 .chat .controls input { flex: 1; }
@@ -173,6 +182,17 @@ table.dt tr:hover td { background: #141e30; }
 .status-succeeded { color: var(--green); } .status-refused { color: var(--red); } .status-pending { color: var(--amber); }
 .toast { position: fixed; right: 18px; bottom: 18px; background: #1a2436; border: 1px solid var(--border); padding: 10px 14px;
   border-radius: 10px; z-index: 60; animation: pop .2s; max-width: 360px; }
+
+/* 1366x768 projector: shorter bottom strip, compact metrics */
+@media (max-height: 820px) and (min-width: 1201px) {
+  .demo-grid { grid-template-rows: 1fr 180px; gap: 10px; padding: 10px; }
+  .demo-grid .bottom { gap: 10px; }
+  .kpis.mini { gap: 8px; }
+  .kpis.mini .kpi { padding: 8px 10px; }
+  .kpis.mini .value { font-size: 19px; }
+  .kpis.mini .sub { display: none; }
+  .chat .subbar .seg button { padding: 4px 7px; }
+}
 
 @media (max-width: 1200px) {
   .demo-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 560px 520px auto; height: auto; }

@@ -36,9 +36,13 @@ def pick(weighted):
 def main(days: int = 30, n: int = 320, seed: int = 7) -> None:
     random.seed(seed)
     path = store.DB_PATH
-    if path.exists():
-        path.unlink()
+    try:
+        path.unlink(missing_ok=True)
+    except PermissionError:                      # Windows: file held open by a running analyst
+        pass
     c = store.connect(path)
+    for (table,) in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+        c.execute(f"DELETE FROM {table}")
     prods = {p["product_id"]: p for p in config.catalog()}
     now = datetime.now(timezone.utc).replace(microsecond=0)
     for i in range(n):

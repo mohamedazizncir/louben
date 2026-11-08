@@ -83,7 +83,7 @@
     // static topology from the least privilege ACL
     UI.get("/api/agents").then(r => {
       agentsInfo = r;
-      edge("customer", "sales"); edge("operator", "gate"); edge("operator", "redteam"); edge("operator", "strategy");
+      edge("customer", "sales"); edge("sales", "customer"); edge("operator", "gate"); edge("operator", "redteam"); edge("operator", "strategy");
       for (const [caller, rules] of Object.entries(r.acl || {})) {
         if (caller === "hub") continue;
         for (const rule of rules) { const t = rule.split(":")[0]; if (POS[t] && POS[caller]) edge(caller, t); }
@@ -104,27 +104,91 @@
       dst.addClass("busy"); setTimeout(() => dst.removeClass("busy"), 700);
     }
 
-    Bus.on("a2a.call", (ev) => {
-      const d = ev.data; const { from, to } = mapCall(d);
-      animate(from, to, d.status, d.skill);
-      countEl.textContent = `${++count} A2A calls`;
-    });
-
     // ---- multisig keys
     const keys = wrap.querySelector(".keys"), status = keys.querySelector(".status");
     const setKey = (k, cls) => { const el = keys.querySelector(`[data-k="${k}"]`); if (el) { el.classList.remove("approve", "refuse", "wait"); if (cls) el.classList.add(cls); } };
-    let current = null;
-    Bus.on("payment.intent_created", (ev) => {
-      current = ev.data.intent_id; ["payment", "security", "analyst", "human"].forEach(k => setKey(k, null));
-      status.textContent = `Intent ${UI.money(ev.data.amount)}: collecting signatures...`;
+
+    // ---- playback queue: a full payment (intent, 3 signatures, execute) takes ~100 ms, far too fast to follow.
+    // Events are buffered, put back in causal order (a2a.call is emitted when the call ENDS, so sort on started_ms)
+    // and replayed at human speed. Panels that must stay in sync listen with Bus.onShown().
+    const PLAY = new Set(["a2a.call", "interaction.message", "payment.intent_created", "gate.signature",
+      "gate.pending_human", "gate.approved", "gate.rejected", "payment.status"]);
+    let buf = [], queue = [], flushT = null, firstAt = 0, playing = false;
+    Bus.setPlayer();
+    Bus.on("*", (ev) => {
+      if (!PLAY.has(ev.type)) { Bus.shown(ev); return; }
+      buf.push(ev);
+      firstAt = firstAt || Date.now();
+      clearTimeout(flushT);
+      flushT = setTimeout(flush, Math.max(0, Math.min(250, 800 - (Date.now() - firstAt))));
     });
-    Bus.on("gate.signature", (ev) => {
-      if (current && ev.data.intent_id !== current) { current = ev.data.intent_id; }
-      setKey(ev.data.signer, ev.data.decision === "approve" ? "approve" : "refuse");
-    });
-    Bus.on("gate.pending_human", (ev) => { current = ev.data.intent_id; setKey("human", "wait"); status.innerHTML = `<b style="color:#fde68a">Human key needed</b>: ${UI.esc(ev.data.reason)}`; });
-    Bus.on("gate.approved", (ev) => { status.innerHTML = `<b style="color:#86efac">Executed</b> · payment ${UI.esc(ev.data.payment_status)} · ${UI.money(ev.data.amount)}`; });
-    Bus.on("gate.rejected", (ev) => { status.innerHTML = `<b style="color:#fca5a5">Rejected</b> · ${UI.esc((ev.data.reasons || []).join("; "))}`; });
+
+    function order(items) {
+      const calls = items.filter(e => e.type === "a2a.call" && e.data.started_ms);
+      const startOf = (pred) => { const c = calls.find(pred); return c ? c.data.started_ms : null; };
+      const first = calls.length ? Math.min(...calls.map(c => c.data.started_ms)) : 0;
+      const last = calls.length ? Math.max(...calls.map(c => c.data.started_ms)) : 0;
+      items.forEach((e, i) => {
+        const d = e.data || {};
+        let k;
+        if (e.type === "a2a.call") k = d.started_ms || last + i;
+        else if (e.type === "interaction.message") k = d.role === "customer" ? first - 2 : last + 1e5 + i;
+        else if (e.type === "payment.intent_created") k = (startOf(c => c.data.to === "gate" && c.data.skill === "submit") ?? last) - 1;
+        else if (e.type === "gate.signature") k = (startOf(c => c.data.from === "gate" && c.data.to === d.signer && c.data.skill === "sign") ?? last) + 0.5;
+        else k = last + 1e4 + i;                                      // outcomes last, in arrival order
+        e._k = k; e._i = i;
+      });
+      return items.sort((a, b) => a._k - b._k || a._i - b._i);
+    }
+
+    function flush() {
+      firstAt = 0; queue.push(...order(buf)); buf = [];
+      if (!playing) next();
+    }
+
+    function next() {
+      const ev = queue.shift();
+      if (!ev) { playing = false; return; }
+      playing = true;
+      const speed = queue.length > 12 ? 0.25 : queue.length > 6 ? 0.6 : 1;   // red team bursts: catch up
+      setTimeout(next, show(ev) * speed);
+    }
+
+    function show(ev) {                                     // returns how long to wait before the next event
+      const d = ev.data || {};
+      Bus.shown(ev);
+      switch (ev.type) {
+        case "a2a.call": {
+          countEl.textContent = `${++count} A2A calls`;
+          if (d.from === "hub" && d.skill === "chat") return 0;          // drawn from interaction.message instead
+          const { from, to } = mapCall(d);
+          animate(from, to, d.status, d.skill);
+          return 420;
+        }
+        case "interaction.message":
+          if (d.role === "customer") animate("customer", "sales", "ok", "chat");
+          else animate("sales", "customer", "ok", "reply");
+          return 300;
+        case "payment.intent_created":
+          ["payment", "security", "analyst", "human"].forEach(k => setKey(k, null));
+          status.textContent = `Intent ${UI.money(d.amount)}: collecting signatures...`;
+          return 250;
+        case "gate.signature":
+          setKey(d.signer, d.decision === "approve" ? "approve" : "refuse");
+          return 380;
+        case "gate.pending_human":
+          setKey("human", "wait"); status.innerHTML = `<b style="color:#fde68a">Human key needed</b>: ${UI.esc(d.reason)}`;
+          return 300;
+        case "gate.approved":
+          status.innerHTML = `<b style="color:#86efac">Executed</b> · payment ${UI.esc(d.payment_status)} · ${UI.money(d.amount)}`;
+          return 300;
+        case "gate.rejected":
+          status.innerHTML = `<b style="color:#fca5a5">Rejected</b> · ${UI.esc((d.reasons || []).join("; "))}`;
+          return 300;
+        default:
+          return 150;
+      }
+    }
 
     // ---- side panel on click
     const panel = wrap.querySelector(".side-panel");

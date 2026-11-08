@@ -80,14 +80,30 @@
     root.querySelectorAll(".kpi[data-kpi]").forEach(el => el.onclick = () => drill(el.dataset.kpi, el.dataset.title));
   }
 
-  function flashChanges(root, k) {
+  // numeric value + formatter per card, used to count up from the previous value
+  function values(k) {
+    const n = (v) => String(Math.round(v));
+    return { rev: [k.revenue_simulated, UI.money], conv: [k.conversion_rate, UI.pct], int: [k.interactions_total, n],
+      intr: [k.interested_total, n], ok: [k.payments.succeeded, n], ko: [k.payments.refused, n],
+      pend: [k.payments.pending, n], sat: [k.avg_satisfaction || 0, v => v ? v.toFixed(2) + " / 5" : "-"], al: [k.alerts_total, n] };
+  }
+
+  function animateChanges(root, k) {
     if (!last) return;
-    const changed = { rev: k.revenue_simulated !== last.revenue_simulated, conv: k.conversion_rate !== last.conversion_rate,
-      int: k.interactions_total !== last.interactions_total, intr: k.interested_total !== last.interested_total,
-      ok: k.payments.succeeded !== last.payments.succeeded, ko: k.payments.refused !== last.payments.refused,
-      pend: k.payments.pending !== last.payments.pending, sat: k.avg_satisfaction !== last.avg_satisfaction,
-      al: k.alerts_total !== last.alerts_total };
-    for (const [id, c] of Object.entries(changed)) if (c) { const el = root.querySelector(`.kpi[data-id="${id}"]`); el && el.classList.add("flash"); }
+    const now = values(k), before = values(last);
+    for (const [id, [to, fmt]] of Object.entries(now)) {
+      const from = before[id][0];
+      if (to === from) continue;
+      const el = root.querySelector(`.kpi[data-id="${id}"]`); if (!el) continue;
+      el.classList.add("flash");
+      const v = el.querySelector(".value"), t0 = performance.now(), dur = 900;
+      const step = (t) => {
+        const x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3);
+        v.textContent = fmt(from + (to - from) * e);
+        if (x < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
   }
 
   // ------------------------------------------------------------------ charts
@@ -167,7 +183,7 @@
     const k = await UI.get("/api/kpis?" + query());
     if (k.error) return;
     const row = document.getElementById("kpi-row");
-    if (row) { row.innerHTML = cardsHTML(k, opts.mini || row.dataset.mini === "1"); bindCards(row); flashChanges(row, k); }
+    if (row) { row.innerHTML = cardsHTML(k, opts.mini || row.dataset.mini === "1"); bindCards(row); animateChanges(row, k); }
     if (!opts.mini) renderCharts(k);
     last = k;
     document.dispatchEvent(new CustomEvent("kpis", { detail: k }));
@@ -232,6 +248,12 @@
       case "security.alert": return `ALERT ${d.type} (${d.severity}) ${d.details ? JSON.stringify(d.details).slice(0, 90) : ""}`;
       case "gate.signature": return `${d.signer} key: ${d.decision} · ${d.reason}`;
       case "payment.status": return `payment ${d.status} · ${UI.money(d.amount)}`;
+      case "payment.intent_created": return `intent ${d.intent_id} · ${UI.money(d.amount)}${d.discount_pct ? ` (-${d.discount_pct}%)` : ""}${d.installments > 1 ? ` · ${d.installments} installments` : ""}`;
+      case "gate.approved": return `APPROVED ${d.intent_id} · ${UI.money(d.amount)} · payment ${d.payment_status}`;
+      case "gate.pending_human": return `HUMAN KEY NEEDED ${d.intent_id} · ${UI.money(d.amount)} · ${d.reason}`;
+      case "gate.rejected": return `REJECTED ${d.intent_id} · ${(d.reasons || []).join("; ")}`;
+      case "interaction.ended": return `conversation ended · ${d.channel} · ${(d.turns || []).length} turns · ${d.outcome}`;
+      case "offer.checked": return `offer ${d.allowed === false ? "capped" : "ok"} · max ${d.max_discount_pct}%`;
       case "redteam.attack": return `${d.blocked ? "BLOCKED" : "PASSED"} ${d.name} → ${d.target}`;
       case "intel.report": return `objections: ${(d.objections || []).join(", ") || "none"} · sentiment ${d.sentiment} · segment ${d.segment}`;
       default: return JSON.stringify(d).slice(0, 140);
@@ -256,10 +278,10 @@
   }
 
   // ------------------------------------------------------------------ public
-  const autoRefresh = UI.debounce((mini) => refresh({ mini }), 1200);
+  const autoRefresh = UI.debounce((mini) => refresh({ mini }), 500);
   function liveRefresh(mini) {
     ["payment.status", "interaction.ended", "intel.report", "security.alert", "gate.rejected", "gate.pending_human"]
-      .forEach(t => Bus.on(t, () => autoRefresh(mini)));
+      .forEach(t => Bus.onShown(t, () => autoRefresh(mini)));   // in step with the agent graph replay
   }
 
   window.Business = { F, query, refresh, drill, mountFilters, mountRecommendations, mountFeed, liveRefresh, describe };

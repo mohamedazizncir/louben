@@ -2,7 +2,13 @@
 // Usage: Bus.on("payment.status", ev => ...); Bus.on("security.*", ...); Bus.on("*", ...)
 (function () {
   const handlers = [];
+  const shownHandlers = [];      // fired when the agent graph has played the event (or at once if no graph)
   const history = [];
+  let player = false;
+  const match = (p, ev) => p === "*" || ev.type === p || (p.endsWith("*") && ev.type.startsWith(p.slice(0, -1)));
+  const dispatch = (list, ev) => {
+    for (const h of list) if (match(h.p, ev)) { try { h.fn(ev); } catch (e) { console.error("[bus]", h.p, e); } }
+  };
   let es = null;
 
   function connect() {
@@ -14,16 +20,16 @@
       try { ev = JSON.parse(m.data); } catch (e) { return; }
       history.push(ev);
       if (history.length > 1500) history.shift();
-      for (const h of handlers) {
-        if (h.p === "*" || ev.type === h.p || (h.p.endsWith("*") && ev.type.startsWith(h.p.slice(0, -1)))) {
-          try { h.fn(ev); } catch (e) { console.error("[bus]", h.p, e); }
-        }
-      }
+      dispatch(handlers, ev);
+      if (!player) dispatch(shownHandlers, ev);
     };
   }
 
   window.Bus = {
     on(pattern, fn) { handlers.push({ p: pattern, fn }); },
+    onShown(pattern, fn) { shownHandlers.push({ p: pattern, fn }); },
+    setPlayer() { player = true; },
+    shown(ev) { dispatch(shownHandlers, ev); },
     history() { return history.slice(); },
     start() { if (!es) connect(); },
   };
