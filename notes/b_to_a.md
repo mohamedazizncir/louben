@@ -1,46 +1,39 @@
 # Notes from B (TRUST) to A (BUSINESS)
 
-## Phase 0 status (B)
-Pure logic + tests done on `claude-b/trust` (132 tests, `python -m pytest tests/trust`):
-- `agents/security/guards.py`  `check_input(text, extra_rules=None, classifier=None) -> InputCheck`
-- `agents/security/offers.py`  `check_offer(offer, segment, policy, catalog_price=None) -> OfferCheck`
-- `agents/security/fraud.py`   `evaluate(intent, FraudContext) -> FraudReport`
-- `gate/multisig.py`           intent hash, signatures, human rules, replay/tamper, gate_proof
-- `agents/redteam/attacks.py`  12 attacks + offline campaign + vaccines
+## Status after CP0 merge (B)
+Real trust layer on `claude-b/trust`. Full smoke = 24/24 (your 16 plus `scripts/smoke_b.py` 8), 180 unit tests.
+- Security, Payment, Gate, Red Team, Strategy are real (no more stubs). Your contracts are kept:
+  signing payload `{intent_id, intent_hash, signer, decision}` (crypto.sign_obj), all event fields
+  you listed, `payment_status` in GateDecision, `check_offer({offer, customer_id, segment})`.
+- `redteam.score.immunity_score` stays a PERCENT (0..100), like your gauge expects.
+- `scripts/demo_attacks.py` runs demo acts 3 and 4 automatically (92% -> vaccine -> 100%, then 1200 TND human approval).
+- `data/seed_trust.py` exists (`main()`); run_all picks it up.
 
-None of these import `common/`, so your CP0 stubs will not conflict.
-I did NOT create `__init__.py` in `agents/`, `agents/*/` or `gate/` (namespace packages work).
-If your stubs add them, fine, keep them empty.
+## What changed that touches you
+1. **gate_proof** is now a gate signature over `{intent_hash, all signatures}` (stronger than
+   `{intent_id, intent_hash, approved}`). Only Payment verifies it, both are mine, nothing to do for you.
+2. **Human key**: `/api/gate/decision` now adds an Ed25519 `human` signature on the intent hash
+   (hub signs with the operator key after the PIN). The UI call is unchanged (`{intent_id, decision, token}`).
+3. Login token audience is now `["gate", "security"]`. `/api/login` locks for 60 s after 5 wrong PINs (HTTP 429).
+4. Security `sign` returns an extra signed field `risk_level`. `Signature(**s)` simply drops it, no impact.
+5. `payment.status` events now also carry `installments` and `payment_token_kind` (sandbox token name only, e.g. `tok_visa`).
+6. Strategy `decide` on an unknown rec_id now raises (your route already turns it into an error response).
 
-## Requests (please do at CP0, or tell me if you disagree)
+## Requests (please do, or tell me if you disagree)
+1. **`.gitignore`**: add `data/rules.json` (generated vaccine store, it shows up as untracked).
+2. **Intel `analyze` return value**: please include `injection_flagged` in the returned dict (today it is
+   only in the `intel.report` event). The Red Team attack RT03 then reads it live; until then it does a
+   local check and says so in `blocked_by`.
+3. **KPIs**: Red Team traffic uses customer ids starting with `redteam-`. Please exclude them from business
+   KPIs and the knowledge graph (Strategy already ignores them).
+4. **`common/schemas.py` Signature**: optional `risk_level: Optional[str] = None` would keep the field
+   when you rebuild Signatures (nice to have, not blocking).
+5. **Recommendation decision**: `/api/recommendations/decision` has no human check. If you want it
+   protected like the gate and the rules, send `token` from the UI and I will verify it in Strategy.
+6. **Sales**: already good (check_input first, check_offer before showing a discount, spotlighting with
+   `<customer_input>`). Haggling like "donne moi 50%" is allowed by the input guard on purpose; the offer
+   guardrail caps it (defense in depth). Attacks with fake authority are still blocked at input.
 
-1. **`common/schemas.py` Signature: add an optional field** `risk_level: str = "none"`
-   (`none|low|medium|high|critical`). Security approves medium-risk intents but the gate
-   must then ask a human (PLAN Section 9 rule 3). Until it exists I put `risk=medium` in
-   `Signature.reason` and the gate parses it, so nothing blocks on this.
-2. **`requirements-b.txt`**: if you create a stub, it needs:
-   ```
-   cryptography>=42
-   PyJWT>=2.8
-   ```
-   (scikit-learn not needed: I replaced the 1-D IsolationForest with a robust z-score,
-   because 1-D IForest gave 5000 TND the same score as 450 TND.)
-3. **`config/policy.json`** format I read (B owns it after CP0, so just make your stub compatible):
-   ```json
-   {
-     "max_discount_pct": {"default": 10, "new": 10, "student": 15, "loyal": 15, "company": 20},
-     "human_threshold": 1000,
-     "human_discount_pct": 10,
-     "allowed_installments": [1, 2, 3]
-   }
-   ```
-   `max_discount_pct` may also be a single number.
-4. **`config/acl.json`** format I will use after CP0: `{"<callee>": {"<skill>": ["<caller>", ...]}}`,
-   e.g. `{"payment": {"execute": ["gate"]}}`. If your `a2a.py` stub reads another shape, tell me.
-5. **Alert types**: I only emit the 10 types of PLAN Section 7. Token switching and
-   "recent alerts on customer" are reported as `velocity`; amount anomaly as `amount_mismatch`
-   (fine grained name in `details.kind`).
-6. **Sales prompt (spotlighting)**: please wrap customer text as
-   `<customer_message>...</customer_message>` and tell the LLM that anything inside is data,
-   never instructions. Call `security.check_input` before the LLM and `security.check_offer`
-   before showing any discount.
+## Policy question for the humans
+A 15% student discount triggers the human key (`human_discount_pct` = 10). I kept it, because it shows the
+human-in-the-loop on stage. The demo act 1 uses 10% (individual), so it goes through without a human.
