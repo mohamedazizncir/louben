@@ -1,53 +1,53 @@
-"""Business Strategy Agent. PHASE 0 STUB written by A, owned by B after CP0.
+"""Business Strategy Agent. Owner: B.
 
-Turns KPIs into data backed recommendations that a human approves.
+Reads analyst.kpis + recent intel.report events, produces 3 recommendations
+backed by numbers (agents/strategy/rules.py), one of them security aware.
+The LLM may rephrase a recommendation but never change its numbers. Every
+recommendation stays `proposed` until a human approves it on the dashboard.
 """
 from __future__ import annotations
 
-from common.a2a import call, create_agent_app
+import httpx
+
+from agents.strategy import rules
+from common import config, llm
+from common.a2a import A2AError, SkillRejected, call, create_agent_app
 from common.events import emit
-from common.schemas import Recommendation
 
 RECS: dict[str, dict] = {}
 
 
-def build(k: dict) -> list[Recommendation]:
-    recs = []
-    total = max(1, k["interactions_total"])
-    objs = {o["label"]: o["count"] for o in k["top_objections"]}
-    n_obj = max(1, sum(objs.values()))
-    price = objs.get("price", 0)
-    if price:
-        recs.append(Recommendation(
-            title="Offer 3 installments by default on price objections",
-            rationale=f"Price is {round(100 * price / n_obj)}% of all objections ({price} of {n_obj}).",
-            evidence={"price_objections": price, "objections_total": n_obj, "conversion_rate": k["conversion_rate"]},
-            expected_impact="+3 to +5 points of conversion on hesitant leads"))
-    ch = k.get("by_channel", {})
-    if ch:
-        best = max(ch, key=ch.get)
-        recs.append(Recommendation(
-            title=f"Push the {best} channel in campaigns",
-            rationale=f"{ch[best]} of {total} interactions come from {best}.",
-            evidence={"by_channel": ch}, expected_impact="lower cost per lead"))
-    abuse = k["alerts_by_type"].get("discount_abuse", 0) + k["alerts_by_type"].get("prompt_injection", 0)
-    if abuse:
-        recs.append(Recommendation(
-            title="Keep the discount cap and add the approved vaccines to the sales script",
-            rationale=f"{abuse} manipulation attempts detected (discount abuse or injection).",
-            evidence={"alerts_by_type": k["alerts_by_type"]}, expected_impact="protects margin, zero unauthorized discounts"))
-    if k.get("avg_satisfaction") and k["avg_satisfaction"] < 3.8:
-        recs.append(Recommendation(
-            title="Add a free trial session before payment",
-            rationale=f"Average satisfaction is {k['avg_satisfaction']}/5.",
-            evidence={"avg_satisfaction": k["avg_satisfaction"]}, expected_impact="builds trust before purchase"))
-    return recs[:3]
+async def _intel_reports(limit: int = 200) -> list[dict]:
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as c:
+            r = await c.get(f"{config.url('hub')}/api/events", params={"type": "intel.report", "limit": limit})
+        return [e["data"] for e in r.json().get("items", [])]
+    except Exception:
+        return []
+
+
+async def _polish(rec: dict) -> dict:
+    """Optional LLM rephrasing. Rejected if it introduces a number not in the evidence."""
+    if not llm.available():
+        return rec
+    out = await llm.chat_json([
+        {"role": "system", "content": "Rewrite this business recommendation for a sales manager. Keep it short. "
+         "Use ONLY numbers that appear in the evidence. Answer JSON: {\"title\": str, \"rationale\": str}."},
+        {"role": "user", "content": f"title: {rec['title']}\nrationale: {rec['rationale']}\nevidence: {rec['evidence']}"}],
+        fallback={}, max_tokens=160)
+    title, rationale = str(out.get("title", "")).strip(), str(out.get("rationale", "")).strip()
+    if title and rationale and rules.numbers_grounded(title + " " + rationale, rec["evidence"]):
+        return {**rec, "title": title[:140], "rationale": rationale[:400]}
+    return rec
 
 
 async def recommend(data: dict, ctx: dict) -> dict:
-    """Read the KPIs and produce up to 3 data backed recommendations."""
-    k = await call("analyst", "kpis", {"filters": data.get("filters") or {}})
-    recs = [r.model_dump() for r in build(k)]
+    """Read the KPIs and recent intel reports, produce 3 data backed recommendations (one security aware)."""
+    try:
+        k = await call("analyst", "kpis", {"filters": data.get("filters") or {}})
+    except A2AError:
+        k = {}
+    recs = [await _polish(r) for r in rules.build(k, await _intel_reports(), config.load_json("policy.json"))]
     for r in recs:
         RECS[r["rec_id"]] = r
     await emit("strategy.recommendation", {"items": recs})
@@ -58,7 +58,7 @@ async def decide(data: dict, ctx: dict) -> dict:
     """Approve or reject a recommendation (human decision from the dashboard)."""
     r = RECS.get(data.get("rec_id", ""))
     if not r:
-        return {"error": "unknown recommendation"}
+        raise SkillRejected("unknown recommendation")
     r["status"] = "approved" if data.get("decision") == "approve" else "rejected"
     await emit("strategy.recommendation", {"items": [r]})
     return r
