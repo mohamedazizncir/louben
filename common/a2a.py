@@ -209,7 +209,7 @@ async def call(target: str, skill: str, data: dict | None = None, *, caller: str
     """
     caller = caller or SELF["name"]
     data = data or {}
-    t0 = time.perf_counter()
+    t0, started_ms = time.perf_counter(), int(time.time() * 1000)   # started_ms: graph replays calls in causal order
     status, summary, err = "ok", skill, None
     try:
         for attempt in range(retries + 1):
@@ -254,6 +254,7 @@ async def call(target: str, skill: str, data: dict | None = None, *, caller: str
             await events.emit("a2a.call", {
                 "from": caller, "to": target, "skill": skill, "status": status,
                 "latency_ms": int((time.perf_counter() - t0) * 1000), "summary": summary,
+                "started_ms": started_ms,
             }, severity="info" if status == "ok" else "warning")
 
 
