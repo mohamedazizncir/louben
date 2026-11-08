@@ -11,12 +11,21 @@ def norm(text: str) -> str:
 
 
 FR_HINTS = {"je", "le", "la", "les", "un", "une", "est", "pour", "bonjour", "merci", "oui", "cher", "veux",
-            "formation", "combien", "prix", "suis", "mon", "ma", "pas", "avec", "c'est", "salut", "trop"}
+            "formation", "combien", "prix", "suis", "mon", "ma", "pas", "avec", "c'est", "salut", "trop",
+            "et", "vous", "des", "de", "du", "avez", "que", "qui", "quoi", "comment", "nous", "votre", "vos", "dans",
+            "au", "aux", "ce", "cette", "il", "elle", "on", "mais", "tres", "peux", "pouvez", "voudrais", "quel",
+            "quelle", "d'accord", "ca", "j'ai", "moi", "prends", "fois", "plusieurs", "reconnus", "marche"}
+EN_HINTS = {"i", "i'm", "i'll", "hello", "hi", "want", "the", "is", "to", "you", "your", "do", "how", "much", "have",
+            "course", "can", "my", "me", "it", "what", "please", "thanks", "yes", "and", "for", "with", "learn", "too",
+            "expensive", "deal", "fine", "take", "a", "are", "of", "in", "this", "that", "there", "would", "like"}
 
 
-def detect_lang(text: str) -> str:
-    words = set(re.findall(r"[a-z']+", norm(text)))
-    return "fr" if len(words & FR_HINTS) >= 1 else "en"
+def detect_lang(text: str, default: str = "fr") -> str:
+    """Count French vs English marker words; on a tie keep `default` (the conversation's current language)."""
+    words = re.findall(r"[a-z']+", norm(text))
+    fr = sum(w in FR_HINTS for w in words)
+    en = sum(w in EN_HINTS for w in words)
+    return "fr" if fr > en else "en" if en > fr else default
 
 
 OBJECTIONS = {
@@ -94,6 +103,16 @@ def sentiment(text: str) -> float:
     if pos + neg == 0:
         return 0.0
     return round((pos - neg) / (pos + neg), 2)
+
+
+def conversation_sentiment(turns: list[str]) -> float:
+    """Later turns weigh more, and accepting the offer is a strong positive signal:
+    "c'est trop cher" followed by "d'accord, je prends" is a happy customer, not an unhappy one."""
+    scores = [min(1.0, sentiment(t) + (0.8 if accepts(t) else 0)) for t in turns if t.strip()]
+    if not scores:
+        return 0.0
+    weights = range(1, len(scores) + 1)
+    return round(sum(w * s for w, s in zip(weights, scores)) / sum(weights), 2)
 
 
 def accepts(text: str) -> bool:

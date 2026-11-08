@@ -17,8 +17,9 @@ SYSTEM = (
 
 
 def fallback_report(it: Interaction) -> IntelReport:
-    text = " ".join(t.text for t in it.turns if t.role == "customer")
-    sent = rules.sentiment(text)
+    said = [t.text for t in it.turns if t.role == "customer"]
+    text = " ".join(said)
+    sent = rules.conversation_sentiment(said)
     interest = rules.interest_score(text, it.outcome)
     return IntelReport(
         interaction_id=it.interaction_id, customer_id=it.customer_id,
@@ -26,6 +27,20 @@ def fallback_report(it: Interaction) -> IntelReport:
         sentiment=sent, interest_score=interest, satisfaction=rules.satisfaction_from(sent, it.outcome),
         segment=it.segment or rules.segment(text), churn_risk=round(max(0.0, 1 - interest - max(0, sent) * 0.2), 2),
     )
+
+
+OBJECTION_LABELS = set(rules.OBJECTIONS) | {"other"}
+SEGMENT_LABELS = {"student", "professional", "company", "individual"}
+
+
+def clean_llm(out: dict, base: IntelReport) -> dict:
+    """Keep only well formed LLM fields, so charts and the knowledge graph keep stable labels."""
+    out = {k: v for k, v in out.items() if k in IntelReport.model_fields} if isinstance(out, dict) else {}
+    objs = [str(o).lower() for o in out.get("objections") or [] if str(o).lower() in OBJECTION_LABELS]
+    out["objections"] = sorted(set(objs) | set(base.objections))
+    seg = str(out.get("segment", "")).lower()
+    out["segment"] = base.segment if base.segment != "individual" or seg not in SEGMENT_LABELS else seg
+    return out
 
 
 async def analyze(data: dict, ctx: dict) -> dict:
@@ -49,7 +64,7 @@ async def analyze(data: dict, ctx: dict) -> dict:
              {"role": "user", "content": f"<transcript>\n{transcript[:6000]}\n</transcript>"}],
             fallback=base.model_dump())
         try:
-            merged = {**base.model_dump(), **{k: v for k, v in out.items() if k in IntelReport.model_fields}}
+            merged = {**base.model_dump(), **clean_llm(out, base)}
             merged["interaction_id"], merged["customer_id"] = it.interaction_id, it.customer_id
             report = IntelReport(**merged)
         except Exception:
@@ -62,3 +77,4 @@ async def analyze(data: dict, ctx: dict) -> dict:
 
 app = create_agent_app("intel", "Customer Intelligence: needs, objections, sentiment, segment, churn risk",
                        {"analyze": analyze})
+llm.warm_on_start(app)

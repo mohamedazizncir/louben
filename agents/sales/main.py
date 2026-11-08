@@ -215,7 +215,7 @@ async def free_reply(s: dict, text: str) -> str:
                                                          catalog=cat)}] + history
     msgs.append({"role": "user", "content": f"<customer_input>{text}</customer_input>"})
     fb = t("greet", lang, org=org) if len(s["turns"]) <= 1 else t("need_product", lang)
-    reply = await llm.chat(msgs, fallback=fb, max_tokens=120)
+    reply = await llm.chat(msgs, fallback=fb, max_tokens=120, timeout=2.5)   # spoken: < 3 s or template
     return output_filter(reply, s)
 
 
@@ -224,7 +224,7 @@ async def chat(data: dict, ctx: dict) -> dict:
     s = get_session(data)
     text = (data.get("text") or "").strip()[:2000]
     if not s["lang"] or len(text) > 12:
-        s["lang"] = rules.detect_lang(text) if text else (s["lang"] or "fr")
+        s["lang"] = rules.detect_lang(text, s["lang"] or "fr") if text else (s["lang"] or "fr")
     lang = s["lang"]
 
     # 1. input guard (prompt injection, exfiltration, fake authority)
@@ -312,3 +312,4 @@ async def end_session(data: dict, ctx: dict) -> dict:
 
 app = create_agent_app("sales", "Voice Sales Agent: presents offers, handles objections, starts payments",
                        {"chat": chat, "end_session": end_session})
+llm.warm_on_start(app)
