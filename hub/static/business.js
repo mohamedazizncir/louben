@@ -54,12 +54,18 @@
   }
 
   // ------------------------------------------------------------------ KPI cards
+  const KICON = { rev: ["wallet", ""], conv: ["trend", "violet"], int: ["chat", ""], intr: ["users", "violet"], ok: ["check", "green"],
+    ko: ["x", "red"], pend: ["clock", "amber"], sat: ["heart", "green"], al: ["alert", "red"] };
   function card(id, label, value, sub, kpi, title) {
+    const [ic, tone] = KICON[id] || ["chart", ""];
     return `<div class="kpi" data-id="${id}" data-kpi="${kpi}" data-title="${UI.esc(title || label)}" title="Click for details">
+      <div class="kico ${tone}">${UI.icon(ic, "")}</div><span class="go">${UI.icon("arrow")}</span>
       <div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub || ""}</div></div>`;
   }
 
-  function cardsHTML(k, mini) {
+  const ORDER = ["rev", "conv", "int", "intr", "ok", "ko", "pend", "sat", "al"];
+  // pick = list of card ids (data-kpis="rev,conv" on the container), or mini (demo page)
+  function cardsHTML(k, mini, pick) {
     const p = k.payments, fc = (k.revenue_forecast_7d || []).reduce((s, x) => s + x.value, 0);
     const topAlert = Object.entries(k.alerts_by_type || {}).sort((a, b) => b[1] - a[1])[0];
     const all = [
@@ -73,6 +79,7 @@
       card("sat", "Satisfaction", k.avg_satisfaction ? k.avg_satisfaction + " / 5" : "-", "from Intel Agent", "satisfaction", "Interactions with satisfaction"),
       card("al", "Security alerts", k.alerts_total, topAlert ? `top: ${topAlert[0]}` : "none", "alerts", "Security alerts"),
     ];
+    if (pick) return pick.map(id => all[ORDER.indexOf(id)]).filter(Boolean).join("");
     return mini ? [all[0], all[1], all[4], all[8]].join("") : all.join("");
   }
 
@@ -110,17 +117,22 @@
   function setupChartDefaults() {
     if (!window.Chart || Chart._louben) return;
     Chart._louben = true;
-    Chart.defaults.color = "#8b9bb4"; Chart.defaults.borderColor = "#1c2638";
+    Chart.defaults.color = "#64748b"; Chart.defaults.borderColor = "#eef2f7";
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
     Chart.defaults.plugins.legend.labels.boxWidth = 10;
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.elements.bar.borderRadius = 6;
+    Chart.defaults.plugins.tooltip.backgroundColor = "#0f172a";
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
     Chart.defaults.maintainAspectRatio = false;
-    Chart.defaults.animation.duration = 450;
+    Chart.defaults.animation.duration = 600;
   }
 
   function chart(id, cfg, onPick) {
     const el = document.getElementById(id); if (!el) return;
     let cv = el.querySelector("canvas");
-    if (!cv) { el.innerHTML = `<div class="chart-box"><canvas></canvas></div>`; cv = el.querySelector("canvas"); }
+    if (!cv) { el.innerHTML = `<div class="chart-box ${el.dataset.tall ? "tall" : ""}"><canvas></canvas></div>`; cv = el.querySelector("canvas"); }
     cfg.options = cfg.options || {};
     cfg.options.onClick = (e, els) => { if (els.length && onPick) onPick(els[0].index, els[0].datasetIndex); };
     cfg.options.onHover = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
@@ -128,14 +140,14 @@
     charts[id] = new Chart(cv, cfg);
   }
 
-  const PAL = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#ef4444", "#fbbf24"];
+  const PAL = ["#2563eb", "#7c3aed", "#f59e0b", "#10b981", "#ec4899", "#0ea5e9", "#ef4444", "#f97316"];
 
   function renderCharts(k) {
     setupChartDefaults();
     const days = k.daily || [];
     chart("conversion-chart", { type: "bar", data: { labels: days.map(d => d.date.slice(5)), datasets: [
-      { type: "bar", label: "Interactions", data: days.map(d => d.interactions), backgroundColor: "#1e3a5f", yAxisID: "y" },
-      { type: "line", label: "Conversion %", data: days.map(d => +(d.rate * 100).toFixed(1)), borderColor: "#22d3ee", backgroundColor: "#22d3ee", tension: .35, yAxisID: "y1", pointRadius: 2 }] },
+      { type: "bar", label: "Interactions", data: days.map(d => d.interactions), backgroundColor: "#dbeafe", hoverBackgroundColor: "#bfdbfe", yAxisID: "y" },
+      { type: "line", label: "Conversion %", data: days.map(d => +(d.rate * 100).toFixed(1)), borderColor: "#2563eb", backgroundColor: "#2563eb", borderWidth: 2.5, tension: .4, yAxisID: "y1", pointRadius: 0, pointHoverRadius: 5 }] },
       options: { scales: { y: { beginAtZero: true }, y1: { position: "right", beginAtZero: true, grid: { display: false }, ticks: { callback: v => v + "%" } } } } },
       (i) => drill("interactions", `Interactions on ${days[i].date}`, { from: days[i].date, to: days[i].date }));
 
@@ -147,33 +159,33 @@
 
     const pl = ["succeeded", "refused", "pending"];
     chart("payments-chart", { type: "doughnut", data: { labels: pl, datasets: [
-      { data: pl.map(s => k.payments[s]), backgroundColor: ["#22c55e", "#ef4444", "#f59e0b"], borderWidth: 0 }] },
-      options: { cutout: "62%", plugins: { legend: { position: "bottom" } } } },
+      { data: pl.map(s => k.payments[s]), backgroundColor: ["#16a34a", "#ef4444", "#f59e0b"], borderWidth: 4, borderColor: "#fff", hoverOffset: 6 }] },
+      options: { cutout: "68%", plugins: { legend: { position: "bottom" } } } },
       (i) => drill(`payments:${pl[i]}`, `Payments ${pl[i]}`));
 
     const fc = k.revenue_forecast_7d || [];
     const labels = [...days.map(d => d.date), ...fc.map(f => f.date)].map(d => d.slice(5));
     chart("revenue-chart", { type: "line", data: { labels, datasets: [
-      { label: "Revenue (TND)", data: [...days.map(d => d.revenue), ...fc.map(() => null)], borderColor: "#34d399", backgroundColor: "rgba(52,211,153,.12)", fill: true, tension: .3, pointRadius: 2 },
-      { label: "Forecast 7d (ML)", data: [...days.map((d, i) => i === days.length - 1 ? d.revenue : null), ...fc.map(f => f.value)], borderColor: "#a78bfa", borderDash: [6, 4], pointRadius: 2, tension: .3 }] },
+      { label: "Revenue (TND)", data: [...days.map(d => d.revenue), ...fc.map(() => null)], borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,.08)", borderWidth: 2.5, fill: true, tension: .4, pointRadius: 0, pointHoverRadius: 5 },
+      { label: "Forecast 7d (ML)", data: [...days.map((d, i) => i === days.length - 1 ? d.revenue : null), ...fc.map(f => f.value)], borderColor: "#7c3aed", borderWidth: 2.5, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 5, tension: .4 }] },
       options: { scales: { y: { beginAtZero: true } } } },
       (i) => { if (i < days.length) drill("revenue", `Revenue on ${days[i].date}`, { from: days[i].date, to: days[i].date }); });
 
     const sd = k.satisfaction_dist || {};
     chart("satisfaction-chart", { type: "bar", data: { labels: ["1", "2", "3", "4", "5"], datasets: [
-      { label: "Customers", data: [1, 2, 3, 4, 5].map(i => sd[i] || 0), backgroundColor: ["#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e"] }] },
+      { label: "Customers", data: [1, 2, 3, 4, 5].map(i => sd[i] || 0), backgroundColor: ["#fca5a5", "#fdba74", "#fcd34d", "#86efac", "#22c55e"] }] },
       options: { plugins: { legend: { display: false } } } },
       (i) => drill(`satisfaction:${i + 1}`, `Satisfaction ${i + 1}/5`));
 
     const seg = Object.entries(k.by_segment || {});
     chart("segment-chart", { type: "doughnut", data: { labels: seg.map(s => s[0]), datasets: [
-      { data: seg.map(s => s[1]), backgroundColor: PAL, borderWidth: 0 }] },
-      options: { cutout: "58%", plugins: { legend: { position: "bottom" } } } },
+      { data: seg.map(s => s[1]), backgroundColor: PAL, borderWidth: 4, borderColor: "#fff", hoverOffset: 6 }] },
+      options: { cutout: "64%", plugins: { legend: { position: "bottom" } } } },
       (i) => drill(`segment:${seg[i][0]}`, `Segment: ${seg[i][0]}`));
 
     const al = Object.entries(k.alerts_by_type || {}).sort((a, b) => b[1] - a[1]);
     chart("alerts-chart", { type: "bar", data: { labels: al.map(a => a[0]), datasets: [
-      { label: "Alerts", data: al.map(a => a[1]), backgroundColor: "#ef4444" }] },
+      { label: "Alerts", data: al.map(a => a[1]), backgroundColor: "#fecaca", hoverBackgroundColor: "#f87171" }] },
       options: { plugins: { legend: { display: false } } } },
       (i) => drill(`alerts:${al[i][0]}`, `Alerts: ${al[i][0]}`));
   }
@@ -182,8 +194,11 @@
   async function refresh(opts = {}) {
     const k = await UI.get("/api/kpis?" + query());
     if (k.error) return;
-    const row = document.getElementById("kpi-row");
-    if (row) { row.innerHTML = cardsHTML(k, opts.mini || row.dataset.mini === "1"); bindCards(row); animateChanges(row, k); }
+    const rows = [document.getElementById("kpi-row"), ...document.querySelectorAll("[data-kpis]")].filter(Boolean);
+    for (const row of new Set(rows)) {
+      const pick = row.dataset.kpis ? row.dataset.kpis.split(",") : null;
+      row.innerHTML = cardsHTML(k, opts.mini || row.dataset.mini === "1", pick); bindCards(row); animateChanges(row, k);
+    }
     if (!opts.mini) renderCharts(k);
     last = k;
     document.dispatchEvent(new CustomEvent("kpis", { detail: k }));
@@ -212,7 +227,7 @@
 
   // ------------------------------------------------------------------ recommendations
   async function mountRecommendations(el) {
-    el.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:10px"><button class="primary small gen">Ask Strategy Agent</button>
+    el.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:10px"><button class="primary small gen">${UI.icon("spark")} Ask Strategy Agent</button>
       <span class="muted" style="font-size:12px;align-self:center">Recommendations are applied only after human approval.</span></div><div class="list recs"></div>`;
     const list = el.querySelector(".recs");
     const items = new Map();
@@ -231,10 +246,10 @@
         if (r.rec_id) { items.set(r.rec_id, r); draw(); }
       });
     };
-    el.querySelector(".gen").onclick = async (e) => {
-      e.target.disabled = true; e.target.textContent = "Thinking...";
+    el.querySelector(".gen").onclick = async (e) => { const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = "Thinking...";
       await UI.post("/api/recommendations/run?" + query(), {});
-      e.target.disabled = false; e.target.textContent = "Ask Strategy Agent";
+      btn.disabled = false; btn.innerHTML = `${UI.icon("spark")} Ask Strategy Agent`;
     };
     Bus.on("strategy.recommendation", (ev) => { (ev.data.items || []).forEach(r => items.set(r.rec_id, r)); draw(); });
     const r = await UI.get("/api/recommendations"); (r.items || []).forEach(x => items.set(x.rec_id, x));

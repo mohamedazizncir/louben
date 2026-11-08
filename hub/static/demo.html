@@ -2,40 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%2322d3ee%22/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%232563eb%22/%3E%3C/svg%3E" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Louben · Autonomous FinTech Team · Live demo</title>
+  <title>TheBridgeFlow · Live demo</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <div class="topbar">
-    <div class="brand">Louben<span>.</span> Autonomous FinTech Team</div>
-    <span class="tag">8 A2A agents · multisig · red team</span>
-    <span class="live"><i></i>live</span>
+    <div class="brand"><span class="mark"><span id="brand-ico"></span></span><span>TheBridge<span class="flow">Flow</span></span></div>
+    <span class="chip">AI Sales Ops · 8 agents</span>
     <span class="spacer"></span>
-    <nav><a class="active" href="/demo">Live demo</a><a href="/dashboard">Dashboard</a><a href="/client" target="_blank">Customer app</a><a href="/partner-demo" target="_blank">Partner site</a></nav>
+    <nav class="pillnav">
+      <a class="active" href="/demo"><i data-ico="play"></i>Live demo</a>
+      <a href="/dashboard"><i data-ico="chart"></i>Dashboard</a>
+      <a href="/client" target="_blank"><i data-ico="mic"></i>Voice advisor</a>
+      <a href="/partner-demo" target="_blank"><i data-ico="globe"></i>Partner site</a>
+    </nav>
+    <span class="live"><i></i>Live</span>
   </div>
 
   <div class="demo-grid">
     <section class="panel chat-col">
-      <h3>Customer conversation <span class="spacer"></span><span class="muted" style="text-transform:none;letter-spacing:0">Ctrl+Space to talk</span></h3>
+      <h3>Customer conversation <span class="spacer"></span><small>Ctrl+Space to talk</small></h3>
       <div id="chat" style="flex:1;min-height:0"></div>
     </section>
 
     <section class="panel graph-col">
-      <h3>Live agent collaboration (A2A) <span class="spacer"></span><span class="muted" style="text-transform:none;letter-spacing:0">click an agent</span></h3>
+      <h3>Agents working together <span class="spacer"></span><small>click an agent</small></h3>
       <div id="agent-graph" class="graph-wrap"></div>
     </section>
 
     <div class="side-col">
-      <section class="panel"><h3>Key metrics <span class="spacer"></span><a href="/dashboard" style="text-transform:none;letter-spacing:0">all KPIs →</a></h3>
+      <section class="panel"><h3>Key metrics <span class="spacer"></span><a href="/dashboard">All KPIs →</a></h3>
         <div class="body"><div id="kpi-row" class="kpis mini" data-mini="1"></div></div></section>
       <section class="panel"><h3>Security</h3><div class="body"><div id="immunity-score"></div></div></section>
-      <section class="panel"><h3>Vaccines (rules from red team)</h3><div class="body"><div id="rules-queue"></div></div></section>
+      <section class="panel"><h3>Vaccines</h3><div class="body"><div id="rules-queue"></div></div></section>
     </div>
 
     <div class="bottom">
-      <section class="panel"><h3>Event stream (agents, payments, alerts)</h3><div class="body"><div id="agent-feed"></div></div></section>
+      <section class="panel"><h3>Event stream</h3><div class="body"><div id="agent-feed"></div></div></section>
       <section class="panel"><h3>Security alerts</h3><div class="body"><div id="security-alerts"></div></div></section>
       <section class="panel"><h3>Gate queue · human key</h3><div class="body"><div id="gate-queue"></div></div></section>
     </div>
@@ -50,6 +55,8 @@
   <script src="/static/business.js"></script>
   <script src="/static/trust.js"></script>
   <script>
+    document.getElementById("brand-ico").innerHTML = UI.icon("spark", "");
+    document.querySelectorAll("[data-ico]").forEach(i => i.outerHTML = UI.icon(i.dataset.ico));
     Bus.start();
     ChatWidget.mount(document.getElementById("chat"), { lang: "fr" });
     AgentGraph.mount(document.getElementById("agent-graph"));

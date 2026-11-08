@@ -1,4 +1,4 @@
-// Live agent collaboration graph + knowledge graph (Cytoscape.js, vendored). Owner: A.
+// Live agent collaboration graph (Cytoscape.js) + 3D knowledge graph (3d-force-graph), both vendored. Owner: A.
 (function () {
   const C = () => UI.colors;
   const ROLES = {
@@ -21,23 +21,23 @@
   function baseStyle() {
     return [
       { selector: "node", style: {
-          "shape": "round-rectangle", "width": 168, "height": 60, "background-color": "#131d2e",
-          "border-width": 2, "border-color": "data(color)", "label": "data(label)", "color": "#e6edf6",
-          "font-size": 15, "font-weight": 600, "text-wrap": "wrap", "line-height": 1.25, "text-valign": "center", "text-halign": "center",
+          "shape": "round-rectangle", "width": 172, "height": 62, "background-color": "#ffffff",
+          "border-width": 2, "border-color": "data(color)", "label": "data(label)", "color": "#0f172a",
+          "font-size": 15, "font-weight": 600, "font-family": "Inter, Segoe UI, sans-serif", "text-wrap": "wrap", "line-height": 1.25, "text-valign": "center", "text-halign": "center",
           "transition-property": "background-color, border-width", "transition-duration": "0.25s" } },
-      { selector: "node.busy", style: { "background-color": "data(color)", "color": "#06121a", "border-width": 4 } },
+      { selector: "node.busy", style: { "background-color": "data(color)", "color": "#ffffff", "border-width": 4 } },
       { selector: "node.dot", style: { "width": 16, "height": 16, "shape": "ellipse", "background-color": "data(color)",
           "border-width": 0, "label": "", "z-index": 99 } },
       { selector: "edge", style: {
-          "width": 1.5, "line-color": "#24324a", "target-arrow-color": "#24324a", "target-arrow-shape": "triangle",
-          "curve-style": "bezier", "arrow-scale": 0.9, "label": "data(label)", "font-size": 13, "color": "#e2e8f0",
-          "text-background-color": "#0a0e16", "text-background-opacity": 0.85, "text-background-padding": 2,
+          "width": 1.5, "line-color": "#cbd5e1", "target-arrow-color": "#cbd5e1", "target-arrow-shape": "triangle",
+          "curve-style": "bezier", "arrow-scale": 0.9, "label": "data(label)", "font-size": 13, "font-weight": 600, "color": "#0f172a",
+          "text-background-color": "#ffffff", "text-background-opacity": 0.95, "text-background-padding": 3, "text-background-shape": "roundrectangle",
           "text-rotation": "autorotate", "transition-property": "line-color, width, target-arrow-color",
           "transition-duration": "0.3s" } },
       { selector: "edge.attack", style: { "line-style": "dashed" } },
-      { selector: "edge.ok", style: { "line-color": "#22c55e", "target-arrow-color": "#22c55e", "width": 4 } },
-      { selector: "edge.refused", style: { "line-color": "#ef4444", "target-arrow-color": "#ef4444", "width": 4 } },
-      { selector: "edge.error", style: { "line-color": "#f59e0b", "target-arrow-color": "#f59e0b", "width": 4 } },
+      { selector: "edge.ok", style: { "line-color": "#16a34a", "target-arrow-color": "#16a34a", "width": 4 } },
+      { selector: "edge.refused", style: { "line-color": "#dc2626", "target-arrow-color": "#dc2626", "width": 4 } },
+      { selector: "edge.error", style: { "line-color": "#d97706", "target-arrow-color": "#d97706", "width": 4 } },
       { selector: "node:selected", style: { "border-width": 5 } },
     ];
   }
@@ -59,8 +59,8 @@
           <div class="key" data-k="human"><span class="ic">👤</span>Human</div>
         </div><div class="status">Waiting for a payment...</div></div>
       <div class="cyhost"><div class="cy"></div>
-      <div class="legend"><span><i style="background:#22c55e"></i>ok</span><span><i style="background:#ef4444"></i>refused</span>
-        <span><i style="background:#f59e0b"></i>error</span><span><i style="background:#fb7185;height:0;border-top:2px dashed #fb7185"></i>attack</span>
+      <div class="legend"><span><i style="background:#16a34a"></i>ok</span><span><i style="background:#dc2626"></i>refused</span>
+        <span><i style="background:#d97706"></i>error</span><span><i style="background:transparent;height:0;border-top:2px dashed #e11d48"></i>attack</span>
         <span class="count">0 A2A calls</span></div>
       <div class="side-panel"></div></div>`;
     const nodes = Object.keys(POS).map(id => ({ data: { id, color: C()[id] || "#94a3b8",
@@ -98,7 +98,7 @@
       clearTimeout(e.scratch("_t"));
       e.scratch("_t", setTimeout(() => { e.removeClass("ok refused error"); e.data("label", ""); }, 1800));
       const src = cy.getElementById(from), dst = cy.getElementById(to);
-      const dot = cy.add({ group: "nodes", data: { id: `dot${Math.random()}`, color: status === "ok" ? "#22c55e" : status === "refused" ? "#ef4444" : "#f59e0b" },
+      const dot = cy.add({ group: "nodes", data: { id: `dot${Math.random()}`, color: status === "ok" ? "#16a34a" : status === "refused" ? "#dc2626" : "#d97706" },
                            position: { ...src.position() }, classes: "dot" });
       dot.animate({ position: { ...dst.position() } }, { duration: 650, easing: "ease-in-out-cubic", complete: () => dot.remove() });
       dst.addClass("busy"); setTimeout(() => dst.removeClass("busy"), 700);
@@ -177,13 +177,13 @@
           setKey(d.signer, d.decision === "approve" ? "approve" : "refuse");
           return 380;
         case "gate.pending_human":
-          setKey("human", "wait"); status.innerHTML = `<b style="color:#fde68a">Human key needed</b>: ${UI.esc(d.reason)}`;
+          setKey("human", "wait"); status.innerHTML = `<b style="color:#d97706">Human key needed</b>: ${UI.esc(d.reason)}`;
           return 300;
         case "gate.approved":
-          status.innerHTML = `<b style="color:#86efac">Executed</b> · payment ${UI.esc(d.payment_status)} · ${UI.money(d.amount)}`;
+          status.innerHTML = `<b style="color:#16a34a">Executed</b> · payment ${UI.esc(d.payment_status)} · ${UI.money(d.amount)}`;
           return 300;
         case "gate.rejected":
-          status.innerHTML = `<b style="color:#fca5a5">Rejected</b> · ${UI.esc((d.reasons || []).join("; "))}`;
+          status.innerHTML = `<b style="color:#dc2626">Rejected</b> · ${UI.esc((d.reasons || []).join("; "))}`;
           return 300;
         default:
           return 150;
@@ -214,75 +214,195 @@
   }
 
   // ------------------------------------------------------------------ knowledge graph
+  // 3D force graph (3d-force-graph, vendored) with glowing nodes, flowing particles and a slow orbit.
+  // Falls back to the 2D Cytoscape view when WebGL is missing. Same API: mount(wrap, getQuery) -> { load }
   const KG_STYLE = {
-    customer: { color: "#60a5fa", shape: "ellipse", size: 22 },
-    product: { color: "#22d3ee", shape: "round-rectangle", size: 58 },
-    objection: { color: "#f59e0b", shape: "diamond", size: 44 },
-    payment: { color: "#22c55e", shape: "round-tag", size: 24 },
-    alert: { color: "#ef4444", shape: "triangle", size: 30 },
+    customer: { color: "#60a5fa", shape: "ellipse", size: 22, val: 2 },
+    product: { color: "#22d3ee", shape: "round-rectangle", size: 58, val: 18 },
+    objection: { color: "#fbbf24", shape: "diamond", size: 44, val: 10 },
+    payment: { color: "#34d399", shape: "round-tag", size: 24, val: 3 },
+    alert: { color: "#f43f5e", shape: "triangle", size: 30, val: 6 },
   };
+  const PAY_COLOR = { refused: "#f43f5e", pending: "#fbbf24" };
+  const PARTICLE = { flagged: "#fb7185", paid: "#34d399", raised: "#fcd34d", interested_in: "#93c5fd", for: "#5eead4" };
+  const idOf = (x) => (x && typeof x === "object" ? x.id : x);
+  const kgColor = (n) => (n.type === "payment" && PAY_COLOR[n.status]) || KG_STYLE[n.type].color;
 
-  function mountKnowledgeGraph(wrap, getQuery) {
-    wrap.innerHTML = `<div class="cy"></div>
-      <div class="kg-tools">${Object.keys(KG_STYLE).map(t => `<span class="pill" data-t="${t}" style="border-color:${KG_STYLE[t].color}">${t}</span>`).join("")}
-        <input class="kg-search" placeholder="Search node..." style="width:150px;padding:4px 8px" />
-        <button class="small kg-reload">Refresh</button><span class="muted kg-count"></span></div>
-      <div class="kg-info"></div>`;
+  function webgl() {
+    try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; }
+  }
+
+  function infoHTML(d, rel, degree) {
+    return `<b style="color:${kgColor(d)};text-transform:capitalize">${UI.esc(d.type)}</b>
+      <div style="font-size:15px;font-weight:700;margin:2px 0 8px">${UI.esc(d.label)}</div>
+      ${d.segment ? `segment: ${UI.esc(d.segment)}<br>` : ""}${d.status ? `status: <span class="status-${d.status}">${UI.esc(d.status)}</span><br>` : ""}
+      ${d.severity ? `severity: ${UI.esc(d.severity)}<br>` : ""}
+      <div style="margin-top:8px">${Object.entries(rel).map(([k, v]) => `<span class="pill">${UI.esc(k)}: ${v}</span>`).join("")}</div>
+      <div class="muted" style="margin-top:8px">${degree} connections · click empty space to reset</div>`;
+  }
+
+  function kg3d(wrap) {
+    const el = wrap.querySelector(".kg3d"), labels = wrap.querySelector(".kg-labels"), info = wrap.querySelector(".kg-info");
+    const known = new Map();                 // node objects keep their 3D position across reloads
+    let focus = null, nb = new Set(), match = null, spans = [], fitted = false;
+    const dim = (n) => (focus && !nb.has(n.id)) || (match && !match.has(n.id));
+    const lit = (l) => focus && (idOf(l.source) === focus.id || idOf(l.target) === focus.id);
+
+    const fg = ForceGraph3D({ controlType: "orbit" })(el)
+      .backgroundColor("rgba(0,0,0,0)").showNavInfo(false).enableNodeDrag(false)   // node drag trips an OrbitControls bug; rotate/zoom only
+      .nodeVal(n => KG_STYLE[n.type].val).nodeRelSize(4).nodeResolution(20).nodeOpacity(0.95)
+      .nodeColor(n => dim(n) ? "#1e293b" : kgColor(n))
+      .nodeLabel(n => `<div style="font:600 12px Inter,sans-serif;padding:5px 9px;background:#0f172a;color:#fff;border-radius:8px;border:1px solid #334155">${UI.esc(n.type)} · ${UI.esc(n.label)}</div>`)
+      .linkColor(l => lit(l) ? "#e2e8f0" : l.relation === "flagged" ? "#f43f5e" : "#64748b")
+      .linkOpacity(0.35).linkWidth(l => lit(l) ? 1.4 : 0)
+      .linkDirectionalParticles(l => (lit(l) ? 4 : l.relation === "flagged" || l.relation === "paid" ? 2 : 1))
+      .linkDirectionalParticleWidth(l => lit(l) ? 2.4 : 1.3).linkDirectionalParticleSpeed(0.005)
+      .linkDirectionalParticleColor(l => PARTICLE[l.relation] || "#93c5fd")
+      .onNodeClick(n => select(n)).onBackgroundClick(() => select(null))
+      .onNodeHover(n => { el.style.cursor = n ? "pointer" : "grab"; })
+      .onEngineStop(() => { if (!fitted && wrap.clientWidth) { fitted = true; fg.zoomToFit(1400, 20); } })
+      .cooldownTicks(160);
+    fg.d3Force("charge").strength(-70);
+    fg.d3Force("link").distance(l => (l.relation === "raised" ? 55 : 38));
+    const ctl = fg.controls(); ctl.autoRotate = true; ctl.autoRotateSpeed = 0.7; ctl.enableDamping = true;
+    fg.cameraPosition({ z: 900 });
+
+    const restyle = () => fg.nodeColor(fg.nodeColor()).linkColor(fg.linkColor()).linkWidth(fg.linkWidth())
+      .linkDirectionalParticles(fg.linkDirectionalParticles()).linkDirectionalParticleWidth(fg.linkDirectionalParticleWidth());
+
+    function select(n) {
+      focus = n; nb = new Set();
+      const links = fg.graphData().links;
+      if (n) {
+        const rel = {};
+        nb.add(n.id);
+        links.forEach(l => {
+          const s = idOf(l.source), t = idOf(l.target);
+          if (s === n.id || t === n.id) { nb.add(s); nb.add(t); rel[l.relation] = (rel[l.relation] || 0) + 1; }
+        });
+        info.style.display = "block"; info.innerHTML = infoHTML(n, rel, nb.size - 1);
+        const r = 1 + 240 / Math.hypot(n.x || 1, n.y || 1, n.z || 1);
+        fg.cameraPosition({ x: n.x * r, y: n.y * r, z: n.z * r }, n, 1300);
+        ctl.autoRotate = false;
+      } else {
+        info.style.display = "none"; ctl.autoRotate = true;
+      }
+      restyle();
+    }
+
+    // crisp HTML labels for products, objections and the focused neighbourhood
+    function tick() {
+      if (wrap.offsetParent !== null) {
+        for (const [sp, n] of spans) {
+          const show = n.x !== undefined && !dim(n) &&
+            (n.type === "product" || n.type === "objection" || (focus && nb.has(n.id)) || (match && match.has(n.id)));
+          if (!show) { sp.style.opacity = 0; continue; }
+          const c = fg.graph2ScreenCoords(n.x, n.y, n.z);
+          sp.style.opacity = 1; sp.style.left = c.x + "px"; sp.style.top = c.y + "px";
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    let lastW = 0;                           // the page may be hidden at load: fit again when it becomes visible
+    new ResizeObserver(() => {
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      fg.width(w).height(h);
+      if (w && !lastW) setTimeout(() => { fitted = true; fg.zoomToFit(1200, 20); }, 600);
+      lastW = w;
+    }).observe(wrap);
+
+    return {
+      graph: fg,
+      set(nodes, edges) {
+        const ns = nodes.map(n => { const o = known.get(n.id) || {}; Object.assign(o, n); known.set(n.id, o); return o; });
+        fg.graphData({ nodes: ns, links: edges.map(e => ({ ...e })) });
+        labels.innerHTML = "";
+        spans = ns.map(n => { const sp = document.createElement("span"); sp.className = n.type; sp.textContent = n.label; labels.appendChild(sp); return [sp, n]; });
+        if (focus && !ns.includes(focus)) select(null);
+      },
+      search(v) {
+        match = v ? new Set(fg.graphData().nodes.filter(n => (n.label || "").toLowerCase().includes(v) || n.id.toLowerCase().includes(v)).map(n => n.id)) : null;
+        if (match && !match.size) match = null;
+        restyle();
+      },
+    };
+  }
+
+  function kg2d(wrap) {
+    const info = wrap.querySelector(".kg-info");
     const cy = cytoscape({ container: wrap.querySelector(".cy"), style: [
       { selector: "node", style: { "background-color": "data(color)", "shape": "data(shape)", "width": "data(size)", "height": "data(size)",
-          "label": "data(label)", "font-size": 11, "color": "#cbd5e1", "text-valign": "bottom", "text-margin-y": 3, "min-zoomed-font-size": 7 } },
-      { selector: "node[type='product']", style: { "font-size": 14, "font-weight": 700, "color": "#e6edf6", "text-wrap": "wrap", "text-max-width": 110 } },
-      { selector: "node[type='objection']", style: { "font-size": 14, "font-weight": 700, "color": "#fde68a" } },
-      { selector: "node[status='refused']", style: { "background-color": "#ef4444" } },
-      { selector: "node[status='pending']", style: { "background-color": "#f59e0b" } },
-      { selector: "edge", style: { "width": 1, "line-color": "#2a3954", "curve-style": "haystack", "opacity": 0.7 } },
-      { selector: "edge[relation='flagged']", style: { "line-color": "#ef4444", "width": 1.6 } },
-      { selector: ".faded", style: { "opacity": 0.08 } },
-      { selector: ".hl", style: { "opacity": 1, "border-width": 2, "border-color": "#fff" } },
-      { selector: "edge.hl", style: { "line-color": "#e2e8f0", "width": 2 } },
+          "label": "data(label)", "font-size": 11, "color": "#334155", "text-valign": "bottom", "text-margin-y": 3, "min-zoomed-font-size": 7,
+          "font-family": "Inter, Segoe UI, sans-serif" } },
+      { selector: "node[type='product']", style: { "font-size": 14, "font-weight": 700, "color": "#0f172a", "text-wrap": "wrap", "text-max-width": 110 } },
+      { selector: "node[type='objection']", style: { "font-size": 14, "font-weight": 700, "color": "#b45309" } },
+      { selector: "node[status='refused']", style: { "background-color": "#f43f5e" } },
+      { selector: "node[status='pending']", style: { "background-color": "#fbbf24" } },
+      { selector: "edge", style: { "width": 1, "line-color": "#cbd5e1", "curve-style": "haystack", "opacity": 0.8 } },
+      { selector: "edge[relation='flagged']", style: { "line-color": "#f43f5e", "width": 1.6 } },
+      { selector: ".faded", style: { "opacity": 0.1 } },
+      { selector: ".hl", style: { "opacity": 1, "border-width": 2, "border-color": "#0f172a" } },
+      { selector: "edge.hl", style: { "line-color": "#2563eb", "width": 2 } },
     ] });
-    const hidden = new Set();
-    const info = wrap.querySelector(".kg-info");
-
-    async function load() {
-      const q = getQuery ? getQuery() : "";
-      const g = await UI.get("/api/graph/knowledge" + (q ? "?" + q : ""));
-      if (!g.nodes) return;
-      cy.elements().remove();
-      cy.add(g.nodes.map(n => ({ data: { ...n, ...KG_STYLE[n.type] } })));
-      cy.add(g.edges.map((e, i) => ({ data: { id: `e${i}`, ...e } })));
-      applyHidden();
-      cy.layout({ name: "cose", animate: false, nodeRepulsion: 12000, idealEdgeLength: 70, gravity: 0.5, numIter: 1000, padding: 24 }).run();
-      wrap.querySelector(".kg-count").textContent = `${g.nodes.length} nodes · ${g.edges.length} relations`;
-    }
-    function applyHidden() { cy.nodes().forEach(n => n.style("display", hidden.has(n.data("type")) ? "none" : "element")); }
-    wrap.querySelectorAll(".kg-tools .pill").forEach(p => p.onclick = () => {
-      const t = p.dataset.t; hidden.has(t) ? hidden.delete(t) : hidden.add(t); p.classList.toggle("off"); applyHidden();
-    });
-    wrap.querySelector(".kg-reload").onclick = load;
-    wrap.querySelector(".kg-search").addEventListener("input", (e) => {
-      const v = e.target.value.toLowerCase(); cy.elements().removeClass("faded hl");
-      if (!v) return;
-      const m = cy.nodes().filter(n => (n.data("label") || "").toLowerCase().includes(v) || n.id().toLowerCase().includes(v));
-      if (m.nonempty()) { cy.elements().addClass("faded"); m.closedNeighborhood().removeClass("faded").addClass("hl"); }
-    });
     cy.on("tap", "node", (e) => {
       const n = e.target, nb = n.closedNeighborhood();
       cy.elements().addClass("faded").removeClass("hl"); nb.removeClass("faded").addClass("hl");
       const rel = {}; n.connectedEdges().forEach(ed => { rel[ed.data("relation")] = (rel[ed.data("relation")] || 0) + 1; });
-      const d = n.data();
-      info.style.display = "block";
-      info.innerHTML = `<b style="color:${d.color}">${UI.esc(d.type)}</b>: ${UI.esc(d.label)}<br>
-        ${d.segment ? `segment: ${UI.esc(d.segment)}<br>` : ""}${d.status ? `status: <span class="status-${d.status}">${UI.esc(d.status)}</span><br>` : ""}
-        ${d.severity ? `severity: ${UI.esc(d.severity)}<br>` : ""}
-        <div style="margin-top:6px">${Object.entries(rel).map(([k, v]) => `<span class="pill">${UI.esc(k)}: ${v}</span>`).join("")}</div>
-        <div class="muted" style="margin-top:6px">${n.degree()} connections. Click empty space to reset.</div>`;
+      info.style.display = "block"; info.innerHTML = infoHTML(n.data(), rel, n.degree());
     });
     cy.on("tap", (e) => { if (e.target === cy) { cy.elements().removeClass("faded hl"); info.style.display = "none"; } });
+    return {
+      graph: cy,
+      set(nodes, edges) {
+        cy.elements().remove();
+        cy.add(nodes.map(n => ({ data: { ...n, ...KG_STYLE[n.type] } })));
+        cy.add(edges.map((e, i) => ({ data: { id: `e${i}`, ...e } })));
+        cy.layout({ name: "cose", animate: false, nodeRepulsion: 12000, idealEdgeLength: 70, gravity: 0.5, numIter: 1000, padding: 24 }).run();
+      },
+      search(v) {
+        cy.elements().removeClass("faded hl");
+        if (!v) return;
+        const m = cy.nodes().filter(n => (n.data("label") || "").toLowerCase().includes(v) || n.id().toLowerCase().includes(v));
+        if (m.nonempty()) { cy.elements().addClass("faded"); m.closedNeighborhood().removeClass("faded").addClass("hl"); }
+      },
+    };
+  }
+
+  function mountKnowledgeGraph(wrap, getQuery) {
+    const use3d = !!window.ForceGraph3D && webgl();
+    wrap.classList.toggle("flat", !use3d);
+    wrap.innerHTML = `<div class="${use3d ? "kg3d" : "cy"}"></div><div class="kg-labels"></div>
+      <div class="kg-tools">${Object.keys(KG_STYLE).map(t => `<span class="pill" data-t="${t}"><i style="background:${KG_STYLE[t].color}"></i>${t}</span>`).join("")}
+        <input class="kg-search" placeholder="Search a node..." />
+        <button class="small kg-reload">Refresh</button><span class="kg-count"></span></div>
+      <div class="kg-info"></div>
+      ${use3d ? `<div class="kg-hint">Drag to rotate · scroll to zoom · click a node to focus</div>` : ""}`;
+    const view = use3d ? kg3d(wrap) : kg2d(wrap);
+    const hidden = new Set();
+    let data = { nodes: [], edges: [] };
+
+    function draw() {
+      const nodes = data.nodes.filter(n => KG_STYLE[n.type] && !hidden.has(n.type));
+      const ids = new Set(nodes.map(n => n.id));
+      view.set(nodes, data.edges.filter(e => ids.has(e.source) && ids.has(e.target)));
+    }
+    async function load() {
+      const q = getQuery ? getQuery() : "";
+      const g = await UI.get("/api/graph/knowledge" + (q ? "?" + q : ""));
+      if (!g.nodes) return;
+      data = g; draw();
+      wrap.querySelector(".kg-count").textContent = `${g.nodes.length} nodes · ${g.edges.length} relations`;
+    }
+    wrap.querySelectorAll(".kg-tools .pill").forEach(p => p.onclick = () => {
+      const t = p.dataset.t; hidden.has(t) ? hidden.delete(t) : hidden.add(t); p.classList.toggle("off"); draw();
+    });
+    wrap.querySelector(".kg-reload").onclick = load;
+    wrap.querySelector(".kg-search").addEventListener("input", (e) => view.search(e.target.value.toLowerCase()));
     const reload = UI.debounce(load, 4000);
     ["interaction.ended", "payment.status", "security.alert", "gate.rejected"].forEach(t => Bus.on(t, reload));
     load();
-    return { cy, load };
+    return { load, graph: view.graph };
   }
 
   window.AgentGraph = { mount: mountAgentGraph };
