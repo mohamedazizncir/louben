@@ -78,3 +78,18 @@ def test_score_returns_last_campaign(rt):
     run(redteam.run_campaign({}, {"caller": "hub"}))
     s = run(redteam.score({}, {"caller": "hub"}))
     assert s["immunity_score"] == 92 and len(s["results"]) == 12
+
+
+def test_score_after_restart_comes_from_history(rt, monkeypatch):
+    async def history():
+        return {"immunity_score": 83, "blocked": 10, "total": 12}
+    monkeypatch.setattr(redteam, "last_score_from_history", history)
+    s = run(redteam.score({}, {"caller": "hub"}))
+    assert s["immunity_score"] == 83 and s["blocked"] == 10 and s["total"] == 12
+    assert s["from_history"] is True
+
+
+def test_score_includes_blocked_and_total_after_campaign(rt):
+    run(redteam.run_campaign({}, {"caller": "hub"}))
+    s = run(redteam.score({}, {"caller": "hub"}))
+    assert s["blocked"] == 11 and s["total"] == 12 and s["from_history"] is False

@@ -49,8 +49,9 @@
     };
     shown("redteam.score", (ev) => set(ev.data.immunity_score, ev.data.blocked, ev.data.total));
     UI.get("/api/redteam/score").then(r => {
-      if (r.immunity_score !== null && r.immunity_score !== undefined)
-        set(r.immunity_score, r.results.filter(x => x.blocked).length, r.results.length);
+      if (r.immunity_score === null || r.immunity_score === undefined) return;
+      set(r.immunity_score, r.blocked ?? (r.results || []).filter(x => x.blocked).length, r.total ?? (r.results || []).length);
+      if (r.from_history) sum.textContent += " (last campaign)";
     });
   }
 

@@ -160,9 +160,27 @@ async def run_campaign(data: dict, ctx: dict) -> dict:
     return {"results": results, "immunity_score": score}
 
 
+async def last_score_from_history() -> dict | None:
+    """Last redteam.score in the audit log (so the gauge is not empty after a restart)."""
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as c:
+            r = await c.get(f"{config.url('hub')}/api/audit", params={"type": "redteam.score", "limit": 1})
+        items = r.json().get("items", [])
+        return items[0]["data"] if items else None
+    except Exception:
+        return None
+
+
 async def score(data: dict, ctx: dict) -> dict:
-    """Return the last immunity score and attack results."""
-    return {"immunity_score": LAST["score"], "results": LAST["results"]}
+    """Return the last immunity score and attack results (from history if no campaign ran since start)."""
+    if LAST["score"] is None:
+        h = await last_score_from_history()
+        if h:
+            return {"immunity_score": h.get("immunity_score"), "blocked": h.get("blocked"),
+                    "total": h.get("total"), "results": [], "from_history": True}
+    results = LAST["results"]
+    return {"immunity_score": LAST["score"], "results": results, "blocked": sum(1 for r in results if r["blocked"]),
+            "total": len(results), "from_history": False}
 
 
 app = create_agent_app("redteam", "Red Team: attacks the platform and measures the immunity score", {
