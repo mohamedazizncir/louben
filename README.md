@@ -13,7 +13,7 @@ Built in 14 hours for **TechX 2026 (IEEE CS SYP · ENIT × ENICarthage)** on the
 ![Data](https://img.shields.io/badge/data-100%25_synthetic-64748b)
 
 ![A live sale: the customer says yes, three agents sign, the payment succeeds](docs/screenshots/demo_live_sale.png)
-**▶ [Watch the 55-second demo video](docs/demo/pantheon_demo.mp4)**: live sale, multisig payment, prompt injection blocked, Red Team + vaccine, human key, dashboard and 3D knowledge graph.
+**▶ [Watch the 55-second demo video](https://www.swisstransfer.com/dl/01a1b9d9-f57f-72ce-b7c6-5970e9ff2362)**: live sale, multisig payment, prompt injection blocked, Red Team + vaccine, human key, dashboard and 3D knowledge graph (also in the repo: [docs/demo/pantheon_demo.mp4](docs/demo/pantheon_demo.mp4)).
 
 <sub>A live sale on `/demo`. The customer accepted the offer by voice. On the agent graph, the Multisig Gate is collecting signatures: Security and Analyst have signed, and the chat already shows the sandbox receipt with the intent hash.</sub>
 
