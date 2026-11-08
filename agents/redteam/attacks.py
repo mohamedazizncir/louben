@@ -272,7 +272,7 @@ def propose_rule(attack: Attack, llm: Callable[[str], str] | None = None,
         pattern = fallback_pattern(payload)
     return {"rule_id": rule_id or f"rule-{uuid.uuid4().hex[:8]}",
             "from_attack_id": attack.attack_id, "pattern": pattern,
-            "description": f"Vaccine ({source}) for '{attack.name}': blocks {_summary(payload)[:60]}",
+            "description": f"Vaccine for {attack.name} ({source} rule)",
             "status": "proposed"}
 
 

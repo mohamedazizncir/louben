@@ -4,6 +4,8 @@
 (function () {
   let token = null;
   const KEYS = ["payment", "security", "analyst", "human"];
+  // visual updates follow the agent graph replay (A's Bus.onShown); data refreshes use Bus.on
+  const shown = (t, fn) => (Bus.onShown || Bus.on).call(Bus, t, fn);
 
   function pinModal() {
     return new Promise((resolve) => {
@@ -45,7 +47,7 @@
       await UI.post("/api/redteam/run", { attacks: "all" });
       e.target.disabled = false; e.target.textContent = "Launch Red Team attack";
     };
-    Bus.on("redteam.score", (ev) => set(ev.data.immunity_score, ev.data.blocked, ev.data.total));
+    shown("redteam.score", (ev) => set(ev.data.immunity_score, ev.data.blocked, ev.data.total));
     UI.get("/api/redteam/score").then(r => {
       if (r.immunity_score !== null && r.immunity_score !== undefined)
         set(r.immunity_score, r.results.filter(x => x.blocked).length, r.results.length);
@@ -55,7 +57,7 @@
   function mountRedteamLog(el) {
     el.classList.add("list");
     el.innerHTML = `<div class="empty">No attack yet.</div>`;
-    Bus.on("redteam.attack", (ev) => {
+    shown("redteam.attack", (ev) => {
       const d = ev.data; if (el.querySelector(".empty")) el.innerHTML = "";
       const it = document.createElement("div"); it.className = `item ${d.blocked ? "sev-low" : "sev-critical"}`;
       it.innerHTML = `<div class="top"><b>${UI.esc(d.name)}</b><span class="pill ${d.blocked ? "ok" : "bad"}">${d.blocked ? "blocked" : "PASSED"}</span></div>
@@ -81,7 +83,7 @@
       el.innerHTML = ""; (r.items || []).slice().reverse().forEach(ev => el.prepend(alertItem(ev)));
       if (!el.children.length) el.innerHTML = `<div class="empty">No alert. Everything is calm.</div>`;
     });
-    Bus.on("security.alert", (ev) => {
+    shown("security.alert", (ev) => {
       const e = el.querySelector(".empty"); if (e) e.remove();
       const it = alertItem(ev); it.classList.add("flash"); el.prepend(it);
       while (el.children.length > 40) el.lastChild.remove();
@@ -112,11 +114,11 @@
     };
     const touch = (id) => { if (!signing.has(id)) signing.set(id, { keys: {}, status: "signing", amount: null }); if (signing.size > 6) signing.delete(signing.keys().next().value); return signing.get(id); };
 
-    Bus.on("payment.intent_created", (ev) => { const s = touch(ev.data.intent_id); s.amount = ev.data.amount; drawLive(); });
-    Bus.on("gate.signature", (ev) => { const s = touch(ev.data.intent_id); s.keys[ev.data.signer] = ev.data.decision; drawLive(); });
-    Bus.on("gate.pending_human", (ev) => { const s = touch(ev.data.intent_id); s.keys.human = "wait"; s.status = "waiting human"; s.amount = ev.data.amount; drawLive(); });
-    Bus.on("gate.approved", (ev) => { const s = touch(ev.data.intent_id); s.status = "executed"; s.amount = ev.data.amount; drawLive(); });
-    Bus.on("gate.rejected", (ev) => { const s = touch(ev.data.intent_id); s.status = "rejected"; s.amount = ev.data.amount; drawLive(); });
+    shown("payment.intent_created", (ev) => { const s = touch(ev.data.intent_id); s.amount = ev.data.amount; drawLive(); });
+    shown("gate.signature", (ev) => { const s = touch(ev.data.intent_id); s.keys[ev.data.signer] = ev.data.decision; drawLive(); });
+    shown("gate.pending_human", (ev) => { const s = touch(ev.data.intent_id); s.keys.human = "wait"; s.status = "waiting human"; s.amount = ev.data.amount; drawLive(); });
+    shown("gate.approved", (ev) => { const s = touch(ev.data.intent_id); s.status = "executed"; s.amount = ev.data.amount; drawLive(); });
+    shown("gate.rejected", (ev) => { const s = touch(ev.data.intent_id); s.status = "rejected"; s.amount = ev.data.amount; drawLive(); });
 
     const draw = async () => {
       const r = await UI.get("/api/gate/pending");
@@ -138,7 +140,7 @@
         draw();
       });
     };
-    ["gate.pending_human", "gate.approved", "gate.rejected"].forEach(t => Bus.on(t, UI.debounce(draw, 300)));
+    ["gate.pending_human", "gate.approved", "gate.rejected"].forEach(t => shown(t, UI.debounce(draw, 300)));
     draw();
   }
 
@@ -161,7 +163,7 @@
         draw();
       });
     };
-    Bus.on("rule.proposed", () => UI.toast("Red Team found a gap: <b>vaccine proposed</b>, waiting for a human"));
+    shown("rule.proposed", () => UI.toast("Red Team found a gap: <b>vaccine proposed</b>, waiting for a human"));
     ["rule.proposed", "rule.approved"].forEach(t => Bus.on(t, UI.debounce(draw, 300)));
     draw();
   }
