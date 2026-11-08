@@ -1,6 +1,5 @@
 // Embeddable advisor widget. One line to install on any website:
 //   <script src="http://127.0.0.1:8000/static/widget.js" data-org="9antra" data-lang="fr"></script>
-// Owner: A.
 (function () {
   const me = document.currentScript;
   const base = new URL(me.src).origin;

@@ -1,4 +1,4 @@
-"""Payment Agent (sandbox). Owner: B.
+"""Payment Agent (sandbox).
 
 Never handles real card numbers: only fake test tokens (tok_visa, tok_declined,
 tok_pending). Money moves only with a valid gate_proof, i.e. after the Multisig

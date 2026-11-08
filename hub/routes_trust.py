@@ -1,6 +1,5 @@
 """Trust API for the UI (human login, gate queue, red team, rules, audit).
 
-Owner: B (first version by A). Routes listed in PLAN.md Section 10.
 """
 from __future__ import annotations
 

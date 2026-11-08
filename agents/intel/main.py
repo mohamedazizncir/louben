@@ -1,4 +1,4 @@
-"""Customer Intelligence Agent: needs, objections, motivations, sentiment, segment, churn risk. Owner: A."""
+"""Customer Intelligence Agent: needs, objections, motivations, sentiment, segment, churn risk."""
 from __future__ import annotations
 
 from agents.intel import rules

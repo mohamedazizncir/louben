@@ -1,4 +1,4 @@
-"""Emit events to the hub (fire and forget). Owner: A.
+"""Emit events to the hub (fire and forget).
 
 Usage inside any agent:  await emit("payment.status", {...}, severity="info")
 The hub stores every event in the audit log and pushes it to the dashboard (SSE).

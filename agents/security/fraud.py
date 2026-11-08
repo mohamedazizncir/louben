@@ -26,7 +26,7 @@ REFUSE_AT = "high"
 @dataclass
 class FraudFlag:
     kind: str          # fine grained rule name
-    alert_type: str    # one of the Alert.type values in PLAN.md Section 7
+    alert_type: str    # one of the Alert.type values in common/schemas.py
     severity: str      # low | medium | high | critical
     reason: str
     details: dict = field(default_factory=dict)

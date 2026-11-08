@@ -1,4 +1,4 @@
-# Louben: security model (TRUST side)
+# Pantheon: security model
 
 No payment moves without **3 independent agent signatures** over the same SHA-256 intent hash, plus a **human key** when the order is risky. The **Red Team** agent keeps attacking the system: any attack that gets through produces a **vaccine** rule, which a human approves.
 

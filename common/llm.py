@@ -1,4 +1,4 @@
-"""LLM access with a deterministic fallback. Owner: A.
+"""LLM access with a deterministic fallback.
 
 Every call MUST pass a fallback so the demo works offline or when the API is slow.
 """

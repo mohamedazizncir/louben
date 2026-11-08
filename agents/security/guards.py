@@ -212,7 +212,7 @@ def check_input(text: str, extra_rules: Iterable | None = None,
 
 
 def alert_type(check: InputCheck) -> str | None:
-    """Map a blocked check to an Alert.type from PLAN.md Section 7."""
+    """Map a blocked check to an Alert.type from common/schemas.py."""
     if check.allowed:
         return None
     for prefix, kind in (("exfiltration", "exfiltration"),

@@ -1,4 +1,4 @@
-"""Multisig Gate core (PLAN.md Section 9). Pure functions, no I/O.
+"""Multisig Gate core (rules in SECURITY.md). Pure functions, no I/O.
 
 * intent_hash = SHA-256 of the canonical JSON of the intent fields, so any
   change (amount, discount, token...) changes the hash and breaks signatures.
@@ -151,7 +151,7 @@ def signing_payload(intent_id: str, intent_hash: str, signer: str, decision: str
 def make_signature(intent, signer: str, decision: str, reason: str,
                    sign: Sign, now: datetime | None = None,
                    risk_level: str | None = None) -> dict:
-    """Build a Signature dict (PLAN.md Section 7) over the intent's hash."""
+    """Build a Signature dict (common/schemas.py) over the intent's hash."""
     intent_id, intent_hash = _get(intent, "intent_id"), _get(intent, "intent_hash")
     payload = signing_payload(intent_id, intent_hash, signer, decision, risk_level)
     sig = {"intent_id": intent_id, "intent_hash": intent_hash, "signer": signer,
@@ -183,7 +183,7 @@ class GateEvaluation:
     problems: list[dict] = field(default_factory=list)  # [{type, signer?, reason}]
 
     def to_decision(self) -> dict:
-        """GateDecision fields only (PLAN.md Section 7)."""
+        """GateDecision fields only (common/schemas.py)."""
         return {"intent_id": self.intent_id, "status": self.status,
                 "signatures": self.signatures, "human_required": self.human_required,
                 "human_reason": self.human_reason}

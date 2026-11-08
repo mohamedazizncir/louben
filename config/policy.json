@@ -1,5 +1,5 @@
 {
-  "_note": "Company discount and approval policy. Owner: B after CP0 (B can add a company signature).",
+  "_note": "Company discount and approval policy.",
   "max_discount_pct": {"student": 15, "individual": 10, "professional": 10, "company": 20},
   "default_discount_offer_pct": 10,
   "installments_allowed": [1, 2, 3],

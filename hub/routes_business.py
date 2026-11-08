@@ -1,4 +1,4 @@
-"""Business API for the UI. Owner: A."""
+"""Business API for the UI."""
 from __future__ import annotations
 
 import asyncio

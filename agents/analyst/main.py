@@ -1,4 +1,4 @@
-"""Financial Data Analyst Agent: KPIs, drill downs, knowledge graph, forecast, multisig co-signer. Owner: A."""
+"""Financial Data Analyst Agent: KPIs, drill downs, knowledge graph, forecast, multisig co-signer."""
 from __future__ import annotations
 
 import asyncio

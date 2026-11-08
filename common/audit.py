@@ -1,6 +1,5 @@
 """Hash chained, append only audit log.
 
-Owner: B after CP0 (first version written by A in phase 0). Keep the function signatures.
 """
 from __future__ import annotations
 

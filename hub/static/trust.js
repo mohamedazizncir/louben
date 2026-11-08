@@ -1,10 +1,10 @@
 // Trust panels: alerts, gate queue (live multisig keys + human key), immunity score,
-// red team log, rules (vaccines), audit trail. Owner: B (first version by A).
-// Panels mount on the ids listed in PLAN.md Section 10. The human token lives in memory only.
+// red team log, rules (vaccines), audit trail.
+// Panels mount on fixed element ids in the dashboard pages. The human token lives in memory only.
 (function () {
   let token = null;
   const KEYS = ["payment", "security", "analyst", "human"];
-  // visual updates follow the agent graph replay (A's Bus.onShown); data refreshes use Bus.on
+  // visual updates follow the agent graph replay (Bus.onShown); data refreshes use Bus.on
   const shown = (t, fn) => (Bus.onShown || Bus.on).call(Bus, t, fn);
 
   function pinModal() {

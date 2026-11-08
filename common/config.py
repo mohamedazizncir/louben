@@ -1,4 +1,4 @@
-"""Shared configuration: ports, paths, env. Owner: A."""
+"""Shared configuration: ports, paths, env."""
 from __future__ import annotations
 
 import json
@@ -22,7 +22,7 @@ KEYS_DIR.mkdir(exist_ok=True)
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT_BASE = int(os.getenv("PORT_BASE", "8000"))
 
-# name -> port offset (PLAN.md Section 4)
+# name -> port offset
 SERVICES: dict[str, int] = {
     "hub": 0,
     "sales": 1,

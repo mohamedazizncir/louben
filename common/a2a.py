@@ -1,4 +1,4 @@
-"""A2A layer (PLAN.md Section 6). Owner: A.
+"""A2A layer: signed agent cards, JSON-RPC message/send, JWT auth on every call.
 
 Server:  app = create_agent_app("sales", "Talks to customers", {"chat": chat_handler, ...})
 Client:  data = await call("intel", "analyze", interaction_dict)

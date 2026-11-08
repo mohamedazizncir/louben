@@ -1,6 +1,6 @@
 <div align="center">
 
-# Louben · The Autonomous FinTech Team
+# Pantheon · The Autonomous FinTech Team
 
 **8 AI agents that sell by voice, get paid safely and defend themselves.**
 Built in 14 hours for **TechX 2026 (IEEE CS SYP · ENIT × ENICarthage)** on the 9antra use case: selling AI training courses.
@@ -13,6 +13,8 @@ Built in 14 hours for **TechX 2026 (IEEE CS SYP · ENIT × ENICarthage)** on the
 ![Data](https://img.shields.io/badge/data-100%25_synthetic-64748b)
 
 ![A live sale: the customer says yes, three agents sign, the payment succeeds](docs/screenshots/demo_live_sale.png)
+**▶ [Watch the 55-second demo video](docs/demo/pantheon_demo.mp4)**: live sale, multisig payment, prompt injection blocked, Red Team + vaccine, human key, dashboard and 3D knowledge graph.
+
 <sub>A live sale on `/demo`. The customer accepted the offer by voice. On the agent graph, the Multisig Gate is collecting signatures: Security and Analyst have signed, and the chat already shows the sandbox receipt with the intent hash.</sub>
 
 </div>
@@ -36,7 +38,7 @@ Built in 14 hours for **TechX 2026 (IEEE CS SYP · ENIT × ENICarthage)** on the
 | Criterion (grille de pré-sélection) | Where to look |
 |---|---|
 | 1. Qualité de la communication | [The problem](#1-the-problem) · [Our solution](#2-our-solution-a-team-not-a-chatbot) · [Added value](#3-the-added-value) |
-| 2. Originalité et innovation | [Three innovations](#32-three-innovations-nobody-asked-for-but-every-bank-needs) · [Chatbot vs Louben](#33-a-chatbot-vs-louben) |
+| 2. Originalité et innovation | [Three innovations](#32-three-innovations-nobody-asked-for-but-every-bank-needs) · [Chatbot vs Pantheon](#33-a-chatbot-vs-pantheon) |
 | 3. Réalisation et conception | [Architecture](#5-architecture-and-orchestration) · [Technical choices](#8-technical-choices) · [Built in 14 hours](#9-built-in-14-hours) |
 | 4. Pertinence IA & FinTech | [Meet the agents](#21-meet-the-agents) · [End-to-end journey](#4-the-end-to-end-journey) · [Dashboard](#6-dashboard-and-indicators) |
 | 5. Cybersécurité et confiance | [Cybersecurity and trust](#7-cybersecurity-and-trust) · [SECURITY.md](SECURITY.md) (threat model) |
@@ -55,7 +57,7 @@ Putting a single AI chatbot in front of customers does not fix this, and it crea
 
 ## 2. Our solution: a team, not a chatbot
 
-Louben is an **autonomous team of specialised AI agents**. Each agent has one job, its own key and only the permissions that job needs. Together they run the whole customer and financial journey: **present an offer → understand needs and objections → take a sandbox payment → analyse results → recommend improvements**, with security built into every step.
+Pantheon is an **autonomous team of specialised AI agents**. Each agent has one job, its own key and only the permissions that job needs. Together they run the whole customer and financial journey: **present an offer → understand needs and objections → take a sandbox payment → analyse results → recommend improvements**, with security built into every step.
 
 ### 2.1 Meet the agents
 
@@ -90,9 +92,9 @@ The **Hub** orchestrates the customer UI, the event bus, the dashboards and the 
 | **🧱 Discount Guardrails** | The discount is checked by the **input guard**, by the **offer guardrail** and by the **Analyst's signature**: three different agents, three different methods. | "My manager approved 90 % off" is blocked at the door. Even if a new phrasing gets past the first check, the next two still stop it (defence in depth). |
 | **⚔️ Red Team + vaccines** | A dedicated agent attacks the platform live. Any attack that passes becomes a proposed rule, tested against normal messages, and **activated only after a human approves it**. | Security that **improves itself under human control**: immunity goes from 92 % to 100 % on stage, in one click. |
 
-### 3.3 A chatbot vs Louben
+### 3.3 A chatbot vs Pantheon
 
-| | Typical AI sales chatbot | Louben |
+| | Typical AI sales chatbot | Pantheon |
 |---|---|---|
 | Scope | Answers questions | Runs the journey from offer to payment to analysis to strategy |
 | Payment | A link, or nothing | Sandbox payment with 3 signatures + human key |
@@ -159,7 +161,7 @@ Every KPI card and every chart bar is **clickable** and opens the rows behind it
 
 ## 7. Cybersecurity and trust
 
-| Requirement of the brief | How Louben meets it |
+| Requirement of the brief | How Pantheon meets it |
 |---|---|
 | Least privilege | Per-agent ACL + JWT scope checked on **every** call; each service loads only its own private key |
 | Data protection | Synthetic data only; emails masked before storage; only `tok_*` sandbox tokens accepted, card-like numbers refused; secrets in `.env`, keys gitignored |
@@ -195,7 +197,7 @@ Measured on the running platform (5 runs of each live scenario, 66 labelled atta
 
 ## 9. Built in 14 hours
 
-* **Contract first.** A shared plan ([PLAN.md](PLAN.md)) fixed the schemas, the A2A protocol, the events and the file ownership before any code, so the business side and the trust side were built in parallel without conflicts.
+* **Contract first.** The typed schemas ([common/schemas.py](common/schemas.py)), the A2A protocol ([common/a2a.py](common/a2a.py)) and the event list were fixed before any agent was written, so the business agents and the trust agents were built in parallel without conflicts.
 * **A thin slice first, then depth.** Checkpoints every 90 minutes, and `main` always ran the full demo.
 * **Tested.** 191 unit tests (guards, fraud rules, multisig, red team, KPIs, signing rules) and an end-to-end smoke test (24 checks) that runs the real services.
 * **Honest scope.** Payments are simulated and data is synthetic, as the brief requires. See [Limits](#14-limits-and-human-supervision).

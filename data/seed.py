@@ -1,4 +1,4 @@
-"""Synthetic business history (30 days) so the dashboard is alive from the start. Owner: A.
+"""Synthetic business history (30 days) so the dashboard is alive from the start.
 
 All data is FAKE. Usage: python -m data.seed
 """

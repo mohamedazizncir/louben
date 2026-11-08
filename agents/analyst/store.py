@@ -1,4 +1,4 @@
-"""Business data store + KPI computations (pure functions, testable). Owner: A."""
+"""Business data store + KPI computations (pure functions, testable)."""
 from __future__ import annotations
 
 import json

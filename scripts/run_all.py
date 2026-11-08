@@ -1,4 +1,4 @@
-"""Start every service (hub + 8 agents). Ctrl+C stops everything. Owner: A.
+"""Start every service (hub + 8 agents). Ctrl+C stops everything.
 
 Usage:
   python scripts/run_all.py            # start
@@ -42,7 +42,7 @@ def main() -> None:
         for f in ("rules.json", "audit.db"):        # clean demo: no vaccine approved yet, fresh audit chain
             (config.DATA_DIR / f).unlink(missing_ok=True)
         try:
-            from data import seed_trust  # B's synthetic trust history (optional)
+            from data import seed_trust  # synthetic trust history (optional)
             seed_trust.main()
         except ImportError:
             pass

@@ -1,4 +1,4 @@
-// KPI cards, charts, filters, drill downs, recommendations, live feed. Owner: A.
+// KPI cards, charts, filters, drill downs, recommendations, live feed.
 (function () {
   const F = {};                               // global filters
   const charts = {};
@@ -115,8 +115,8 @@
 
   // ------------------------------------------------------------------ charts
   function setupChartDefaults() {
-    if (!window.Chart || Chart._louben) return;
-    Chart._louben = true;
+    if (!window.Chart || Chart._pantheon) return;
+    Chart._pantheon = true;
     Chart.defaults.color = "#64748b"; Chart.defaults.borderColor = "#eef2f7";
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
     Chart.defaults.plugins.legend.labels.boxWidth = 10;

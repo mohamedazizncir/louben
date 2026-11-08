@@ -1,4 +1,4 @@
-"""Business Strategy Agent. Owner: B.
+"""Business Strategy Agent.
 
 Reads analyst.kpis + recent intel.report events, produces 3 recommendations
 backed by numbers (agents/strategy/rules.py), one of them security aware.

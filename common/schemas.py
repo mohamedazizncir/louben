@@ -1,4 +1,4 @@
-"""Shared data models (PLAN.md Section 7). Owner: A. FROZEN after CP0: only add optional fields."""
+"""Shared data models: A2A messages, payments, signatures, alerts, events."""
 from __future__ import annotations
 
 import uuid
@@ -109,7 +109,7 @@ class Signature(BaseModel):
     reason: str = ""
     signature_b64: str = ""
     ts: str = Field(default_factory=now_iso)
-    risk_level: Optional[str] = None      # set by security.sign (B), optional field added after CP0
+    risk_level: Optional[str] = None      # set by security.sign
 
 
 class GateDecision(BaseModel):

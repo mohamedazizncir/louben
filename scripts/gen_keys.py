@@ -1,4 +1,4 @@
-"""Generate one Ed25519 key per identity + keys/registry.json. Owner: B after CP0.
+"""Generate one Ed25519 key per identity + keys/registry.json.
 
 Usage: python scripts/gen_keys.py [--force]
 """

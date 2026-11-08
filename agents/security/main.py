@@ -1,4 +1,4 @@
-"""Security & Fraud Agent. Owner: B.
+"""Security & Fraud Agent.
 
 Skills:
 * check_input  - guards.py (FR/EN/darija injection, fake authority, exfiltration,

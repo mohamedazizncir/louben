@@ -1,4 +1,4 @@
-"""Red Team Agent. Owner: B.
+"""Red Team Agent.
 
 Runs the attack library (agents/redteam/attacks.py) against the LIVE platform
 through real A2A calls, so every attack shows on the agent graph. If a target

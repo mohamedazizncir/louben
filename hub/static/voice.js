@@ -1,4 +1,4 @@
-// Voice: Web Speech API (speech to text + speech synthesis). Owner: A.
+// Voice: Web Speech API (speech to text + speech synthesis).
 // Works in Chrome and Edge (speech recognition needs internet in Chrome). Text input is always the fallback.
 (function () {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;

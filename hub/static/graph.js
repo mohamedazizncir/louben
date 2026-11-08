@@ -1,4 +1,4 @@
-// Live agent collaboration graph (Cytoscape.js) + 3D knowledge graph (3d-force-graph), both vendored. Owner: A.
+// Live agent collaboration graph (Cytoscape.js) + 3D knowledge graph (3d-force-graph), both vendored.
 (function () {
   const C = () => UI.colors;
   const ROLES = {

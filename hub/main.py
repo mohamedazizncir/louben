@@ -1,4 +1,4 @@
-"""Hub: event bus (SSE), audit, dashboard + demo pages, API for the UI. Owner: A.
+"""Hub: event bus (SSE), audit, dashboard + demo pages, API for the UI.
 
 Routers: routes_business.py (A) and routes_trust.py (B).
 """
@@ -21,7 +21,7 @@ log = logging.getLogger("hub")
 a2a.SELF["name"] = "hub"
 events.set_source("hub")
 
-app = FastAPI(title="Louben hub")
+app = FastAPI(title="Pantheon hub")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
 app.include_router(routes_business.router)

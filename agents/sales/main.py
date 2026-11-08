@@ -1,4 +1,4 @@
-"""Voice Sales Agent: presents offers, answers questions, handles objections, starts the payment. Owner: A.
+"""Voice Sales Agent: presents offers, answers questions, handles objections, starts the payment.
 
 Security by design:
 * every customer message goes through security.check_input BEFORE anything else

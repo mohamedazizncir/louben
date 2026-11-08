@@ -1,4 +1,4 @@
-"""Deterministic customer intelligence (fallback when no LLM). Used by Intel and Sales. Owner: A."""
+"""Deterministic customer intelligence (fallback when no LLM). Used by Intel and Sales."""
 from __future__ import annotations
 
 import re

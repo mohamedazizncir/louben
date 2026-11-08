@@ -3,7 +3,7 @@
 Each attack is plain data. `run_local` replays an attack against the pure
 trust layers (guards, fraud rules, multisig) with no network: it is the
 offline fallback for the live campaign, which goes through real A2A calls
-from agents/redteam/main.py after CP0.
+from agents/redteam/main.py.
 
 Vaccines: an attack that gets through yields a ProposedRule. The regex comes
 from the LLM when it is valid, otherwise from the attack's key words. A rule
@@ -112,7 +112,7 @@ def _summary(payload) -> str:
 
 def make_result(attack: Attack, blocked: bool, blocked_by: str | None = None,
                 now: datetime | None = None) -> dict:
-    """AttackResult fields (PLAN.md Section 7)."""
+    """AttackResult fields (common/schemas.py)."""
     return {"attack_id": attack.attack_id, "name": attack.name, "category": attack.category,
             "target": attack.target, "payload_summary": _summary(attack.payload),
             "blocked": bool(blocked), "blocked_by": blocked_by if blocked else None,
@@ -258,7 +258,7 @@ def fallback_pattern(payload: str) -> str:
 
 def propose_rule(attack: Attack, llm: Callable[[str], str] | None = None,
                  rule_id: str | None = None) -> dict:
-    """ProposedRule fields (PLAN.md Section 7)."""
+    """ProposedRule fields (common/schemas.py)."""
     payload = attack.payload if attack.is_text else json.dumps(attack.payload)
     pattern, source = None, "fallback"
     if llm is not None:

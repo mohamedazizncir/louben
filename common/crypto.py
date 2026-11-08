@@ -1,6 +1,5 @@
 """Keys, signatures, JWT, signed agent cards.
 
-Owner: B after CP0 (first version written by A in phase 0).
 B may rewrite the bodies but must keep these function signatures.
 """
 from __future__ import annotations

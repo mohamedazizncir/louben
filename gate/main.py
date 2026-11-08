@@ -1,8 +1,8 @@
-"""Multisig Gate. Owner: B.
+"""Multisig Gate.
 
 No payment moves without 3 agent signatures (Payment, Security, Analyst) over
 the same intent_hash, plus a human key when the amount, the discount or the
-risk is high (PLAN.md Section 9). Decision logic lives in gate/multisig.py.
+risk is high (rules in SECURITY.md). Decision logic lives in gate/multisig.py.
 """
 from __future__ import annotations
 

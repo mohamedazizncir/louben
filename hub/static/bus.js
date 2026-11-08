@@ -1,4 +1,4 @@
-// Live event bus (Server Sent Events from the hub). Owner: A.
+// Live event bus (Server Sent Events from the hub).
 // Usage: Bus.on("payment.status", ev => ...); Bus.on("security.*", ...); Bus.on("*", ...)
 (function () {
   const handlers = [];

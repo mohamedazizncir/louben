@@ -1,4 +1,4 @@
-"""In-memory hub state shared by both routers. Owner: A."""
+"""In-memory hub state shared by both routers."""
 from __future__ import annotations
 
 import asyncio

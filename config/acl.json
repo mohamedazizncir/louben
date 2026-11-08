@@ -1,5 +1,5 @@
 {
-  "_note": "Least privilege matrix: caller -> list of 'target:skill' it may call. Everything else is denied. Owner: B after CP0.",
+  "_note": "Least privilege matrix: caller -> list of 'target:skill' it may call. Everything else is denied.",
   "hub": [
     "sales:chat",
     "sales:end_session",
