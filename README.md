@@ -41,17 +41,20 @@ Backup demo without microphone: `python scripts\demo_business.py`.
 
 ## Architecture
 
-```
-Customer (voice/text) ──► Sales ──► Intel        Analyst ◄── hub (events, SSE, audit)
-                            │          │            ▲
-                            ├──► Security ◄─────────┤ (sign)
-                            └──► Payment ──► Multisig Gate ──► Payment.execute
-                                              ▲   (payment + security + analyst + human)
-Red Team ── attacks everything ──┘            Strategy ◄── Analyst KPIs
-```
+![Multi-agent architecture](docs/architecture.png)
 
 Every service is a FastAPI app with a signed agent card at `/.well-known/agent-card.json` and a JSON-RPC
 `message/send` endpoint (see `PLAN.md`). Every call emits an `a2a.call` event that animates the live graph.
+
+## Benchmark
+
+Measured on the running platform (5 runs of each live scenario, 66 labelled attack and normal messages in French, English and Tunisian darija).
+
+![Input guard rates](docs/benchmark/guard_rates.png)
+
+![Detection vs false alarms by threshold](docs/benchmark/threshold_curve.png)
+
+![Response time curve](docs/benchmark/latency_curve.png)
 
 ## How 9antra would plug it in
 
@@ -65,6 +68,6 @@ Every service is a FastAPI app with a signed agent card at `/.well-known/agent-c
 * Payments are **simulated** (or Stripe test mode). No real money, no real card data: only fake tokens.
 * All data is **synthetic** (seeded history + demo sessions).
 * LLM answers can be wrong or slow: every LLM call has a deterministic fallback, prices never come from the LLM.
-* The red team library is small (about 10 attacks). Vaccines are regex rules and can create false positives, so a human approves each one.
+* The red team library is small (12 attacks). Vaccines are regex rules and can create false positives, so a human approves each one.
 * Human supervision is required for: payments above 1000 TND, discounts above 10%, new security rules, strategy changes.
 * Keys are local files for the prototype; production would use a vault/HSM.
