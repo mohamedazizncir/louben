@@ -1,10 +1,11 @@
 """Trust API for the UI (human login, gate queue, red team, rules, audit).
 
-PHASE 0 STUB written by A, owned by B after CP0. Keep the routes listed in PLAN.md Section 10.
+Owner: B (first version by A). Routes listed in PLAN.md Section 10.
 """
 from __future__ import annotations
 
 import hmac
+import time
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -12,6 +13,7 @@ from fastapi.responses import JSONResponse
 from common import a2a, audit, config, crypto
 from common.a2a import A2AError
 from common.events import emit
+from gate import multisig
 
 router = APIRouter(prefix="/api")
 
@@ -28,14 +30,28 @@ def _human_ok(token: str) -> bool:
         return False
 
 
+_failed_logins: list[float] = []
+MAX_FAILED, LOCKOUT_S = 5, 60
+
+
 @router.post("/login")
 async def login(request: Request):
+    """PIN -> human JWT. 5 wrong PINs lock the login for 60 s (stops brute force of a 4 digit PIN)."""
     body = await request.json()
+    now = time.time()
+    _failed_logins[:] = [t for t in _failed_logins if now - t < LOCKOUT_S]
+    if len(_failed_logins) >= MAX_FAILED:
+        return JSONResponse({"error": f"too many wrong PINs, wait {LOCKOUT_S}s"}, status_code=429)
     if not hmac.compare_digest(str(body.get("pin", "")), str(config.HUMAN_PIN)):
-        await emit("security.alert", {"type": "fake_approval", "severity": "medium",
-                                      "details": {"reason": "wrong dashboard PIN"}}, severity="warning")
+        _failed_logins.append(now)
+        await emit("security.alert", {"type": "fake_approval", "severity": "medium" if len(_failed_logins) < 3 else "high",
+                                      "details": {"reason": f"wrong dashboard PIN ({len(_failed_logins)}/{MAX_FAILED})"}},
+                   severity="warning")
         return JSONResponse({"error": "wrong PIN"}, status_code=401)
-    token = crypto.sign_jwt("human", "gate", ["human:approve"], ttl=1800, extra={"sub": body.get("name") or "operator"})
+    _failed_logins.clear()
+    # token lives in browser memory only (trust.js), never in localStorage
+    token = crypto.sign_jwt("human", ["gate", "security"], ["human:approve"], ttl=1800,
+                            extra={"sub": str(body.get("name") or "operator")[:40]})
     return {"token": token, "expires_in": 1800}
 
 
@@ -49,11 +65,26 @@ async def gate_pending():
 
 @router.post("/gate/decision")
 async def gate_decision(request: Request):
+    """Human key = PIN-backed JWT + an Ed25519 'human' signature over the exact intent_hash."""
     body = await request.json()
+    token = body.get("token", "")
+    if not _human_ok(token):
+        await emit("security.alert", {"type": "fake_approval", "severity": "high", "target": "gate",
+                                      "details": {"reason": "gate decision without a valid human login",
+                                                  "intent_id": body.get("intent_id")}}, severity="warning")
+        return JSONResponse({"error": "human login required"}, status_code=401)
+    intent_id = body.get("intent_id")
+    decision = "approve" if body.get("decision", "approve") == "approve" else "refuse"
     try:
-        return await a2a.call("gate", "human_decision", {"intent_id": body.get("intent_id"),
-                                                         "decision": body.get("decision", "approve"),
-                                                         "human_jwt": body.get("token", "")}, timeout=30)
+        items = (await a2a.call("gate", "pending", {}, quiet=True)).get("items", [])
+        p = next((x for x in items if x["intent"]["intent_id"] == intent_id), None)
+        if p is None:
+            return JSONResponse({"error": "unknown or already decided intent"}, status_code=404)
+        sig_body = multisig.signing_payload_dict(intent_id, p["intent"]["intent_hash"], "human", decision)
+        human_sig = {**sig_body, "reason": "operator decision", "signature_b64": crypto.sign_obj("human", sig_body)}
+        return await a2a.call("gate", "human_decision", {"intent_id": intent_id, "decision": decision,
+                                                         "human_jwt": token, "human_signature": human_sig},
+                              timeout=30)
     except A2AError as e:
         return _err(e, 403 if e.state in ("rejected", "refused") else 502)
 
