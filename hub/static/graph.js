@@ -262,7 +262,7 @@
       .onNodeHover(n => { el.style.cursor = n ? "pointer" : "grab"; })
       .onEngineStop(() => { if (!fitted && wrap.clientWidth) { fitted = true; fg.zoomToFit(1400, 20); } })
       .cooldownTicks(160);
-    fg.d3Force("charge").strength(-70);
+    fg.d3Force("charge").strength(-60).distanceMax(160);   // capped reach: small clusters stay near the core
     fg.d3Force("link").distance(l => (l.relation === "raised" ? 55 : 38));
     const ctl = fg.controls(); ctl.autoRotate = true; ctl.autoRotateSpeed = 0.7; ctl.enableDamping = true;
     fg.cameraPosition({ z: 900 });
