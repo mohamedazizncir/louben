@@ -175,7 +175,8 @@ _cards: dict[str, dict] = {}
 def _client() -> httpx.AsyncClient:
     global _http
     if _http is None or _http.is_closed:
-        _http = httpx.AsyncClient(timeout=15)
+        # long keep-alive: on Windows a fresh connection after a pause can cost 1-2 s, reuse them between turns
+        _http = httpx.AsyncClient(timeout=15, limits=httpx.Limits(keepalive_expiry=120))
     return _http
 
 

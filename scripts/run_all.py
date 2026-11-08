@@ -51,7 +51,7 @@ def main() -> None:
     # agents first, hub last
     for name in sorted(only, key=lambda n: n == "hub"):
         cmd = [sys.executable, "-m", "uvicorn", config.APPS[name], "--host", config.HOST,
-               "--port", str(config.port(name)), "--log-level", "warning"]
+               "--port", str(config.port(name)), "--log-level", "warning", "--timeout-keep-alive", "120"]
         procs.append((name, subprocess.Popen(cmd, cwd=ROOT, env=env)))
         print(f"[run_all] {name:9s} -> {config.url(name)}")
     time.sleep(2.5)
@@ -66,7 +66,7 @@ def main() -> None:
                 if p.poll() is not None:
                     print(f"[run_all] {name} exited with code {p.returncode}, restarting")
                     cmd = [sys.executable, "-m", "uvicorn", config.APPS[name], "--host", config.HOST,
-                           "--port", str(config.port(name)), "--log-level", "warning"]
+                           "--port", str(config.port(name)), "--log-level", "warning", "--timeout-keep-alive", "120"]
                     procs[procs.index((name, p))] = (name, subprocess.Popen(cmd, cwd=ROOT, env=env))
             time.sleep(2)
     except KeyboardInterrupt:
