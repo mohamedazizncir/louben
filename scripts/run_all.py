@@ -25,16 +25,6 @@ def main() -> None:
     if not crypto.keys_exist():
         crypto.generate_keys()
         print("[run_all] keys generated")
-    if "--seed" in args or not (config.DATA_DIR / "business.db").exists():
-        from data import seed
-        seed.main()
-        for f in ("rules.json", "audit.db"):        # clean demo: no vaccine approved yet, fresh audit chain
-            (config.DATA_DIR / f).unlink(missing_ok=True)
-        try:
-            from data import seed_trust  # B's synthetic trust history (optional)
-            seed_trust.main()
-        except ImportError:
-            pass
     only = args[args.index("--only") + 1:] if "--only" in args else list(config.APPS)
     import socket
     busy = []
@@ -46,6 +36,16 @@ def main() -> None:
         print(f"[run_all] ports already in use: {', '.join(busy)}. Another run_all is running? "
               f"Stop it, or set PORT_BASE in .env (example 8100).")
         sys.exit(1)
+    if "--seed" in args or not (config.DATA_DIR / "business.db").exists():
+        from data import seed
+        seed.main()
+        for f in ("rules.json", "audit.db"):        # clean demo: no vaccine approved yet, fresh audit chain
+            (config.DATA_DIR / f).unlink(missing_ok=True)
+        try:
+            from data import seed_trust  # B's synthetic trust history (optional)
+            seed_trust.main()
+        except ImportError:
+            pass
     env = {**os.environ, "PYTHONPATH": str(ROOT), "PYTHONUNBUFFERED": "1"}
     procs: list[tuple[str, subprocess.Popen]] = []
     # agents first, hub last

@@ -11,3 +11,4 @@ data/*.db-journal
 .DS_Store
 .idea/
 .vscode/
+data/rules.json
