@@ -107,6 +107,12 @@
     // ---- multisig keys
     const keys = wrap.querySelector(".keys"), status = keys.querySelector(".status");
     const setKey = (k, cls) => { const el = keys.querySelector(`[data-k="${k}"]`); if (el) { el.classList.remove("approve", "refuse", "wait"); if (cls) el.classList.add(cls); } };
+    // clear the keys only when a NEW intent starts: on a slow stack its events can arrive in separate batches
+    let shownIntent = null;
+    const startIntent = (id) => {
+      if (id === shownIntent) return;
+      shownIntent = id; ["payment", "security", "analyst", "human"].forEach(k => setKey(k, null));
+    };
 
     // ---- playback queue: a full payment (intent, 3 signatures, execute) takes ~100 ms, far too fast to follow.
     // Events are buffered, put back in causal order (a2a.call is emitted when the call ENDS, so sort on started_ms)
@@ -170,10 +176,11 @@
           else animate("sales", "customer", "ok", "reply");
           return 300;
         case "payment.intent_created":
-          ["payment", "security", "analyst", "human"].forEach(k => setKey(k, null));
+          startIntent(d.intent_id);
           status.textContent = `Intent ${UI.money(d.amount)}: collecting signatures...`;
           return 250;
         case "gate.signature":
+          startIntent(d.intent_id);
           setKey(d.signer, d.decision === "approve" ? "approve" : "refuse");
           return 380;
         case "gate.pending_human":
