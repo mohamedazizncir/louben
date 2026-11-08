@@ -109,6 +109,7 @@ class Signature(BaseModel):
     reason: str = ""
     signature_b64: str = ""
     ts: str = Field(default_factory=now_iso)
+    risk_level: Optional[str] = None      # set by security.sign (B), optional field added after CP0
 
 
 class GateDecision(BaseModel):

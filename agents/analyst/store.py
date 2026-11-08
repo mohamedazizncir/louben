@@ -42,6 +42,8 @@ def _now() -> str:
 # ------------------------------------------------------------------ ingest
 def ingest(c: sqlite3.Connection, ev: dict) -> bool:
     t, d, ts = ev.get("type", ""), ev.get("data", {}) or {}, ev.get("ts") or _now()
+    if str(d.get("customer_id", "")).startswith("redteam-") and not t.startswith("security."):
+        return False          # Red Team traffic is not business: keep it out of KPIs and the knowledge graph
     if t == "interaction.ended":
         c.execute("INSERT OR IGNORE INTO customers VALUES(?,?,?)", (d.get("customer_id"), d.get("customer_id"),
                                                                      d.get("segment") or "individual"))

@@ -119,6 +119,7 @@ async def recommendations_run(request: Request):
 async def recommendations_decision(request: Request):
     body = await request.json()
     try:
-        return await a2a.call("strategy", "decide", {"rec_id": body.get("rec_id"), "decision": body.get("decision")})
+        return await a2a.call("strategy", "decide", {"rec_id": body.get("rec_id"), "decision": body.get("decision"),
+                                                       "token": body.get("token")})   # human token, verified by B
     except A2AError as e:
         return _err(e)

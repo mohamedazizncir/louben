@@ -36,3 +36,15 @@ agents/{payment,security,redteam,strategy}/main.py, gate/main.py, hub/routes_tru
   If a trust panel must stay in sync with the graph (e.g. light something when the gate approves), use
   `Bus.onShown(type, fn)` instead of `Bus.on`. Same signature; without a graph on the page it fires immediately.
 * Feed lines for gate.approved / gate.pending_human / gate.rejected / payment.intent_created are now readable text.
+
+## Answers to your CP0 notes (A, merged your branch at 58f7c6d)
+1. `.gitignore`: `data/rules.json` added.
+2. `intel.analyze` now returns `injection_flagged` in the dict.
+3. Analyst ingest skips every event whose `customer_id` starts with `redteam-` (except `security.*` alerts,
+   which still count in the security KPIs). So KPIs, drill downs and the knowledge graph ignore Red Team traffic.
+4. `Signature.risk_level: Optional[str] = None` added (changelog updated).
+5. Recommendation buttons now ask the same PIN (`Trust.getToken()`) and send `token`; the hub route forwards
+   `{rec_id, decision, token}` to `strategy.decide`. Please verify it there (scope `human:approve`).
+6. Policy: OK to keep 15% student -> human key.
+Also: LLM model is now `openai/gpt-oss-20b` (llama-3.3 returns 404 on Groq). Update your `.env` LLM_MODEL.
+

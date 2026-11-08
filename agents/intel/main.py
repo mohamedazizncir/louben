@@ -72,7 +72,7 @@ async def analyze(data: dict, ctx: dict) -> dict:
     payload = {**report.model_dump(), "product_id": it.product_id, "channel": it.channel,
                "outcome": it.outcome, "injection_flagged": flagged}
     await emit("intel.report", payload)
-    return report.model_dump()
+    return {**report.model_dump(), "injection_flagged": flagged}
 
 
 app = create_agent_app("intel", "Customer Intelligence: needs, objections, sentiment, segment, churn risk",

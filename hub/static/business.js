@@ -225,7 +225,9 @@
         ${r.expected_impact ? `<div style="margin-top:4px;font-size:12px">Expected impact: ${UI.esc(r.expected_impact)}</div>` : ""}</div>`).join("")
         || `<div class="empty">No recommendation yet. Click "Ask Strategy Agent".</div>`;
       list.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
-        const r = await UI.post("/api/recommendations/decision", { rec_id: b.dataset.id, decision: b.dataset.a });
+        const token = window.Trust && Trust.getToken ? await Trust.getToken() : null;   // same human PIN as the gate
+        if (window.Trust && !token) return;
+        const r = await UI.post("/api/recommendations/decision", { rec_id: b.dataset.id, decision: b.dataset.a, token });
         if (r.rec_id) { items.set(r.rec_id, r); draw(); }
       });
     };
